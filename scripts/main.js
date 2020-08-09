@@ -296,17 +296,14 @@ var UpgradeTray = /** @class */ (function () {
         var input = game.input;
         var x = input.getX();
         var y = input.getY();
-        console.log('here11');
         for (var i = 0; i < this.upgrades.length; i++) {
-            console.log('here2');
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
                 var upgrade = this.upgrades[i];
                 if (input.isClicked() && upgrade.cost <= game.points.points) {
                     game.points.points -= upgrade.cost;
                     upgrade.action();
                 }
-                console.log('here3');
-                game.tooltip = new Tooltip(upgrade.name, 'Tooltip text here, blah blah blah.', x, y);
+                game.tooltip = new Tooltip(upgrade.name, 'Tooltip text here.', x, y);
             }
         }
     };
@@ -331,14 +328,14 @@ var Tooltip = /** @class */ (function () {
         var textWidth = context.measureText(this.text).width;
         var width = Math.max(titleWidth, textWidth) + 10;
         context.fillStyle = game.colours.background;
-        context.fillRect(this.x, this.y, width, 60);
+        context.fillRect(this.x, this.y - 60, width, 60);
         context.strokeStyle = game.colours.boxNormal;
-        context.strokeRect(this.x, this.y, width, 60);
+        context.strokeRect(this.x, this.y - 60, width, 60);
         context.fillStyle = game.colours.textNormal;
         context.font = game.fonts.large;
-        context.fillText(this.title, this.x + 5, this.y);
+        context.fillText(this.title, this.x + 5, this.y - 35);
         context.font = game.fonts.medium;
-        context.fillText(this.text, this.x + 5, this.y + 35);
+        context.fillText(this.text, this.x + 5, this.y - 5);
     };
     return Tooltip;
 }());
