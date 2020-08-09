@@ -13,8 +13,10 @@ var Game = /** @class */ (function () {
             background: '#005555',
             textNormal: '#AAAAAA',
             textSelected: '#00AA00',
+            textWarning: '#AA0000',
             boxNormal: '#AAAAAA',
             boxSelected: '#00AA00',
+            boxWarning: '#AA0000',
         };
         this.fonts = {
             small: '16px Arial',
@@ -262,9 +264,10 @@ var BlockTray = /** @class */ (function () {
     return BlockTray;
 }());
 var UpgradeInfo = /** @class */ (function () {
-    function UpgradeInfo(cost, name, char, action) {
+    function UpgradeInfo(cost, name, description, char, action) {
         this.cost = cost;
         this.name = name;
+        this.description = description;
         this.char = char;
         this.action = action;
     }
@@ -285,7 +288,7 @@ var UpgradeTray = /** @class */ (function () {
     }
     UpgradeTray.prototype.init = function () {
         this.upgrades = [
-            new UpgradeInfo(15, 'Bigginator', '-', function () {
+            new UpgradeInfo(15, 'Bigger grid', 'Increases the size of the grid by 1.', '+', function () {
                 game.grid.width += 1;
                 game.grid.height += 1;
                 game.grid.adjustGrid();
@@ -303,7 +306,7 @@ var UpgradeTray = /** @class */ (function () {
                     game.points.points -= upgrade.cost;
                     upgrade.action();
                 }
-                game.tooltip = new Tooltip(upgrade.name, 'Tooltip text here.', x, y);
+                game.tooltip = new Tooltip(upgrade.name, upgrade.description, x, y, upgrade.cost);
             }
         }
     };
@@ -315,27 +318,50 @@ var UpgradeTray = /** @class */ (function () {
     return UpgradeTray;
 }());
 var Tooltip = /** @class */ (function () {
-    function Tooltip(title, text, x, y) {
+    function Tooltip(title, text, x, y, cost) {
+        if (cost === void 0) { cost = null; }
         this.title = title;
         this.text = text;
         this.x = x;
         this.y = y;
+        this.cost = cost;
     }
     Tooltip.prototype.draw = function (context) {
+        var height = this.getHeight();
+        var top = this.getTop();
+        var width = this.getWidth(context);
+        context.fillStyle = game.colours.background;
+        context.fillRect(this.x, top, width, height);
+        context.strokeStyle = game.colours.boxNormal;
+        context.strokeRect(this.x, top, width, height);
+        context.fillStyle = game.colours.textNormal;
+        context.font = game.fonts.large;
+        context.fillText(this.title, this.x + 5, top + 30);
+        context.font = game.fonts.medium;
+        context.fillText(this.text, this.x + 5, top + 55);
+        context.font = game.fonts.medium;
+        context.fillText(this.getCostPrefix() + this.cost.toString(), this.x + 5, top + 80);
+    };
+    Tooltip.prototype.getHeight = function () {
+        return this.cost == null ? 60 : 90;
+    };
+    Tooltip.prototype.getTop = function () {
+        return this.y - this.getHeight();
+    };
+    Tooltip.prototype.getCostPrefix = function () {
+        return 'Cost: ';
+    };
+    Tooltip.prototype.getWidth = function (context) {
         context.font = game.fonts.large;
         var titleWidth = context.measureText(this.title).width;
         context.font = game.fonts.medium;
         var textWidth = context.measureText(this.text).width;
-        var width = Math.max(titleWidth, textWidth) + 10;
-        context.fillStyle = game.colours.background;
-        context.fillRect(this.x, this.y - 60, width, 60);
-        context.strokeStyle = game.colours.boxNormal;
-        context.strokeRect(this.x, this.y - 60, width, 60);
-        context.fillStyle = game.colours.textNormal;
-        context.font = game.fonts.large;
-        context.fillText(this.title, this.x + 5, this.y - 35);
+        if (this.cost == null) {
+            return Math.max(titleWidth, textWidth) + 10;
+        }
         context.font = game.fonts.medium;
-        context.fillText(this.text, this.x + 5, this.y - 5);
+        var costWidth = context.measureText(this.getCostPrefix() + this.cost.toString()).width;
+        return Math.max(titleWidth, textWidth, costWidth) + 10;
     };
     return Tooltip;
 }());

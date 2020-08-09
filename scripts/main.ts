@@ -31,8 +31,10 @@ class Game {
         background: '#005555',
         textNormal: '#AAAAAA',
         textSelected: '#00AA00',
+        textWarning: '#AA0000',
         boxNormal: '#AAAAAA',
         boxSelected: '#00AA00',
+        boxWarning: '#AA0000',
     }
 
     fonts = {
@@ -342,6 +344,7 @@ class UpgradeInfo {
     constructor(
         public cost: number,
         public name: string,
+        public description: string,
         public char: string,
         public action: Function
     ) { }
@@ -364,7 +367,7 @@ class UpgradeTray {
 
     init() {
         this.upgrades = [
-            new UpgradeInfo(15, 'Bigginator', '-', () => {
+            new UpgradeInfo(15, 'Bigger grid', 'Increases the size of the grid by 1.', '+', () => {
                 game.grid.width += 1;
                 game.grid.height += 1;
                 game.grid.adjustGrid();
@@ -387,7 +390,7 @@ class UpgradeTray {
                     upgrade.action();
                 }
 
-                game.tooltip = new Tooltip(upgrade.name, 'Tooltip text here.', x, y);
+                game.tooltip = new Tooltip(upgrade.name, upgrade.description, x, y, upgrade.cost);
             }
         }
     }
@@ -405,26 +408,57 @@ class Tooltip {
         public text: string,
         public x: number,
         public y: number,
+        public cost: number = null,
     ) { }
 
     draw(context: Context) {
+        const height = this.getHeight();
+        const top = this.getTop();
+
+        const width = this.getWidth(context);
+
+        context.fillStyle = game.colours.background;
+        context.fillRect(this.x, top, width, height);
+
+        context.strokeStyle = game.colours.boxNormal;
+        context.strokeRect(this.x, top, width, height);
+
+        context.fillStyle = game.colours.textNormal;
+        context.font = game.fonts.large;
+        context.fillText(this.title, this.x + 5, top + 30);
+
+        context.font = game.fonts.medium;
+        context.fillText(this.text, this.x + 5, top + 55);
+
+        context.font = game.fonts.medium;
+        context.fillText(this.getCostPrefix() + this.cost.toString(), this.x + 5, top + 80);
+    }
+
+    getHeight() {
+        return this.cost == null ? 60 : 90;
+    }
+
+    getTop() {
+        return this.y - this.getHeight();
+    }
+
+    getCostPrefix() {
+        return 'Cost: ';
+    }
+
+    getWidth(context: Context) {
         context.font = game.fonts.large;
         const titleWidth = context.measureText(this.title).width;
         context.font = game.fonts.medium;
         const textWidth = context.measureText(this.text).width;
-        const width = Math.max(titleWidth, textWidth) + 10;
 
-        context.fillStyle = game.colours.background;
-        context.fillRect(this.x, this.y-60, width, 60);
+        if (this.cost == null) {
+            return Math.max(titleWidth, textWidth) + 10;
+        }
 
-        context.strokeStyle = game.colours.boxNormal;
-        context.strokeRect(this.x, this.y-60, width, 60);
-
-        context.fillStyle = game.colours.textNormal;
-        context.font = game.fonts.large;
-        context.fillText(this.title, this.x + 5, this.y-35);
         context.font = game.fonts.medium;
-        context.fillText(this.text, this.x + 5, this.y-5);
+        const costWidth = context.measureText(this.getCostPrefix() + this.cost.toString()).width;
+        return Math.max(titleWidth, textWidth, costWidth) + 10;
     }
 }
 
