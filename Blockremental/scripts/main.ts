@@ -88,7 +88,7 @@ class Game {
         this.upgradeTray.draw(this.context);
 
         if (this.tooltip != null) {
-            this.tooltip.draw(context);
+            this.tooltip.draw(this.context);
         }
     }
 
