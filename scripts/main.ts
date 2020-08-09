@@ -30,11 +30,11 @@ class Game {
     colours = {
         background: '#005555',
         textNormal: '#AAAAAA',
-        textSelected: '#00AA00',
-        textWarning: '#AA0000',
+        textGood: '#00AA00',
+        textBad: '#AA0000',
         boxNormal: '#AAAAAA',
-        boxSelected: '#00AA00',
-        boxWarning: '#AA0000',
+        boxGood: '#00AA00',
+        boxBad: '#AA0000',
     }
 
     fonts = {
@@ -283,11 +283,11 @@ class BlockInfo {
     ) { }
 
     draw(context: Context, x: number, y: number, selected: boolean) {
-        context.strokeStyle = selected ? game.colours.boxSelected : game.colours.boxNormal;
+        context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
         context.strokeRect(x, y, 45, 45);
 
         context.font = game.fonts.large;
-        context.fillStyle = selected ? game.colours.textSelected : game.colours.textNormal;
+        context.fillStyle = selected ? game.colours.textGood : game.colours.textNormal;
         context.fillText(this.char, x + 10, y + 35);
     }
 }
@@ -430,8 +430,13 @@ class Tooltip {
         context.font = game.fonts.medium;
         context.fillText(this.text, this.x + 5, top + 55);
 
-        context.font = game.fonts.medium;
-        context.fillText(this.getCostPrefix() + this.cost.toString(), this.x + 5, top + 80);
+        if (this.cost != null) {
+            context.font = game.fonts.medium;
+            context.fillText(this.getCostPrefix(), this.x + 5, top + 80);
+
+            context.fillStyle = this.cost <= game.points.points ? game.colours.textGood : game.colours.textBad;
+            context.fillText(this.cost.toString(), this.x + 5 + this.getCostPrefixWidth(context), top + 80);
+        }
     }
 
     getHeight() {
@@ -444,6 +449,10 @@ class Tooltip {
 
     getCostPrefix() {
         return 'Cost: ';
+    }
+
+    getCostPrefixWidth(context: Context) {
+        return context.measureText(this.getCostPrefix()).width;
     }
 
     getWidth(context: Context) {

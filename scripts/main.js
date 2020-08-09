@@ -12,11 +12,11 @@ var Game = /** @class */ (function () {
         this.colours = {
             background: '#005555',
             textNormal: '#AAAAAA',
-            textSelected: '#00AA00',
-            textWarning: '#AA0000',
+            textGood: '#00AA00',
+            textBad: '#AA0000',
             boxNormal: '#AAAAAA',
-            boxSelected: '#00AA00',
-            boxWarning: '#AA0000',
+            boxGood: '#00AA00',
+            boxBad: '#AA0000',
         };
         this.fonts = {
             small: '16px Arial',
@@ -215,10 +215,10 @@ var BlockInfo = /** @class */ (function () {
         this.char = char;
     }
     BlockInfo.prototype.draw = function (context, x, y, selected) {
-        context.strokeStyle = selected ? game.colours.boxSelected : game.colours.boxNormal;
+        context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
         context.strokeRect(x, y, 45, 45);
         context.font = game.fonts.large;
-        context.fillStyle = selected ? game.colours.textSelected : game.colours.textNormal;
+        context.fillStyle = selected ? game.colours.textGood : game.colours.textNormal;
         context.fillText(this.char, x + 10, y + 35);
     };
     return BlockInfo;
@@ -339,8 +339,12 @@ var Tooltip = /** @class */ (function () {
         context.fillText(this.title, this.x + 5, top + 30);
         context.font = game.fonts.medium;
         context.fillText(this.text, this.x + 5, top + 55);
-        context.font = game.fonts.medium;
-        context.fillText(this.getCostPrefix() + this.cost.toString(), this.x + 5, top + 80);
+        if (this.cost != null) {
+            context.font = game.fonts.medium;
+            context.fillText(this.getCostPrefix(), this.x + 5, top + 80);
+            context.fillStyle = this.cost <= game.points.points ? game.colours.textGood : game.colours.textBad;
+            context.fillText(this.cost.toString(), this.x + 5 + this.getCostPrefixWidth(context), top + 80);
+        }
     };
     Tooltip.prototype.getHeight = function () {
         return this.cost == null ? 60 : 90;
@@ -350,6 +354,9 @@ var Tooltip = /** @class */ (function () {
     };
     Tooltip.prototype.getCostPrefix = function () {
         return 'Cost: ';
+    };
+    Tooltip.prototype.getCostPrefixWidth = function (context) {
+        return context.measureText(this.getCostPrefix()).width;
     };
     Tooltip.prototype.getWidth = function (context) {
         context.font = game.fonts.large;
