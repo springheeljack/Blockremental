@@ -9,6 +9,18 @@ var Game = /** @class */ (function () {
     function Game() {
         this.updateInterval = 1000 / 60;
         this.drawInterval = 1000 / 60;
+        this.colours = {
+            background: '#005555',
+            textNormal: '#AAAAAA',
+            textSelected: '#00AA00',
+            boxNormal: '#AAAAAA',
+            boxSelected: '#00AA00',
+        };
+        this.fonts = {
+            small: '16px Arial',
+            medium: '22px Arial',
+            large: '30px Arial',
+        };
         this.canvas = document.getElementById('gameCanvas');
         this.context = this.canvas.getContext('2d');
         this.canvas.width = window.innerWidth;
@@ -143,9 +155,9 @@ var Grid = /** @class */ (function () {
         }
     };
     Grid.prototype.draw = function (context) {
-        context.strokeStyle = '#AAAAAA';
-        context.fillStyle = '#AAAAAA';
-        context.font = '30px Arial';
+        context.strokeStyle = game.colours.boxNormal;
+        context.fillStyle = game.colours.textNormal;
+        context.font = game.fonts.large;
         for (var x = 0; x < this.width; x++) {
             for (var y = 0; y < this.height; y++) {
                 var rectX = this.paddedOffsetX + x * this.size;
@@ -183,8 +195,8 @@ var Points = /** @class */ (function () {
         this.points = 10;
     }
     Points.prototype.draw = function (context) {
-        context.fillStyle = '#AAAAAA';
-        context.font = '30px Arial';
+        context.font = game.fonts.large;
+        context.fillStyle = game.colours.textNormal;
         context.fillText(this.points.toString(), 20, 550);
     };
     return Points;
@@ -197,11 +209,10 @@ var BlockInfo = /** @class */ (function () {
         this.char = char;
     }
     BlockInfo.prototype.draw = function (context, x, y, selected) {
-        var colour = selected ? '#00AA00' : '#AAAAAA';
-        context.strokeStyle = colour;
-        context.fillStyle = colour;
+        context.strokeStyle = selected ? game.colours.boxSelected : game.colours.boxNormal;
         context.strokeRect(x, y, 45, 45);
-        context.font = '30px Arial';
+        context.font = game.fonts.large;
+        context.fillStyle = selected ? game.colours.textSelected : game.colours.textNormal;
         context.fillText(this.char, x + 10, y + 35);
     };
     return BlockInfo;
@@ -254,11 +265,10 @@ var UpgradeInfo = /** @class */ (function () {
         this.action = action;
     }
     UpgradeInfo.prototype.draw = function (context, x, y) {
-        var colour = '#AAAAAA';
-        context.strokeStyle = colour;
-        context.fillStyle = colour;
+        context.strokeStyle = game.colours.boxNormal;
         context.strokeRect(x, y, 45, 45);
-        context.font = '30px Arial';
+        context.font = game.fonts.large;
+        context.fillStyle = game.colours.textNormal;
         context.fillText(this.char, x + 10, y + 35);
     };
     return UpgradeInfo;
