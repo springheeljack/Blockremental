@@ -26,6 +26,20 @@ class Game {
     updateInterval = 1000 / 60;
     drawInterval = 1000 / 60;
 
+    colours = {
+        background: '#005555',
+        textNormal: '#AAAAAA',
+        textSelected: '#00AA00',
+        boxNormal: '#AAAAAA',
+        boxSelected: '#00AA00',
+    }
+
+    fonts = {
+        small: '16px Arial',
+        medium: '22px Arial',
+        large: '30px Arial',
+    }
+
     constructor() {
         this.canvas = document.getElementById('gameCanvas') as Canvas;
         this.context = this.canvas.getContext('2d');
@@ -197,9 +211,9 @@ class Grid {
     }
 
     draw(context: Context) {
-        context.strokeStyle = '#AAAAAA';
-        context.fillStyle = '#AAAAAA';
-        context.font = '30px Arial';
+        context.strokeStyle = game.colours.boxNormal;
+        context.fillStyle = game.colours.textNormal;
+        context.font = game.fonts.large;
 
         for (let x = 0; x < this.width; x++) {
             for (let y = 0; y < this.height; y++) {
@@ -245,8 +259,8 @@ class Points {
     points = 10;
 
     draw(context: Context) {
-        context.fillStyle = '#AAAAAA';
-        context.font = '30px Arial';
+        context.font = game.fonts.large;
+        context.fillStyle = game.colours.textNormal;
         context.fillText(this.points.toString(), 20, 550);
     }
 }
@@ -260,13 +274,11 @@ class BlockInfo {
     ) { }
 
     draw(context: Context, x: number, y: number, selected: boolean) {
-        const colour = selected ? '#00AA00' : '#AAAAAA';
-        context.strokeStyle = colour;
-        context.fillStyle = colour;
-
+        context.strokeStyle = selected ? game.colours.boxSelected : game.colours.boxNormal;
         context.strokeRect(x, y, 45, 45);
 
-        context.font = '30px Arial';
+        context.font = game.fonts.large;
+        context.fillStyle = selected ? game.colours.textSelected : game.colours.textNormal;
         context.fillText(this.char, x + 10, y + 35);
     }
 }
@@ -328,13 +340,11 @@ class UpgradeInfo {
     ) { }
 
     draw(context: Context, x: number, y: number) {
-        const colour = '#AAAAAA';
-        context.strokeStyle = colour;
-        context.fillStyle = colour;
-
+        context.strokeStyle = game.colours.boxNormal;
         context.strokeRect(x, y, 45, 45);
 
-        context.font = '30px Arial';
+        context.font = game.fonts.large;
+        context.fillStyle = game.colours.textNormal;
         context.fillText(this.char, x + 10, y + 35);
     }
 }
