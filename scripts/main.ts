@@ -22,6 +22,7 @@ class Game {
     points: Points;
     blockTray: BlockTray;
     upgradeTray: UpgradeTray;
+    tooltip: Tooltip;
 
     updateInterval = 1000 / 60;
     drawInterval = 1000 / 60;
@@ -64,6 +65,8 @@ class Game {
     }
 
     update() {
+        this.tooltip = null;
+
         this.input.update();
 
         this.grid.update();
@@ -83,6 +86,10 @@ class Game {
         this.blockTray.draw(this.context);
 
         this.upgradeTray.draw(this.context);
+
+        if (this.tooltip != null) {
+            this.tooltip.draw(context);
+        }
     }
 
     startUpdating() {
@@ -357,7 +364,7 @@ class UpgradeTray {
 
     init() {
         this.upgrades = [
-            new UpgradeInfo(15, 'Bigginator', '+', () => {
+            new UpgradeInfo(15, 'Bigginator', '-', () => {
                 game.grid.width += 1;
                 game.grid.height += 1;
                 game.grid.adjustGrid();
@@ -368,19 +375,21 @@ class UpgradeTray {
     update() {
         const input = game.input;
 
-        if (input.isClicked()) {
-            const x = input.getX();
-            const y = input.getY();
+        const x = input.getX();
+        const y = input.getY();
+        console.log('here11');
 
-            for (let i = 0; i < this.upgrades.length; i++) {
-                if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
-                    const upgrade = this.upgrades[i];
+        for (let i = 0; i < this.upgrades.length; i++) {
+            console.log('here2');
+            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+                const upgrade = this.upgrades[i];
 
-                    if (upgrade.cost <= game.points.points) {
-                        game.points.points -= upgrade.cost;
-                        upgrade.action();
-                    }
+                if (input.isClicked() && upgrade.cost <= game.points.points) {
+                    game.points.points -= upgrade.cost;
+                    upgrade.action();
                 }
+                console.log('here3');
+                game.tooltip = new Tooltip(upgrade.name, 'Tooltip text here, blah blah blah.', x, y);
             }
         }
     }
@@ -389,6 +398,35 @@ class UpgradeTray {
         for (let i = 0; i < this.upgrades.length; i++) {
             this.upgrades[i].draw(context, this.offsetX + (50 * i), this.offsetY);
         }
+    }
+}
+
+class Tooltip {
+    constructor(
+        public title: string,
+        public text: string,
+        public x: number,
+        public y: number,
+    ) { }
+
+    draw(context: Context) {
+        context.font = game.fonts.large;
+        const titleWidth = context.measureText(this.title).width;
+        context.font = game.fonts.medium;
+        const textWidth = context.measureText(this.text).width;
+        const width = Math.max(titleWidth, textWidth) + 10;
+
+        context.fillStyle = game.colours.background;
+        context.fillRect(this.x, this.y, width, 60);
+
+        context.strokeStyle = game.colours.boxNormal;
+        context.strokeRect(this.x, this.y, width, 60);
+
+        context.fillStyle = game.colours.textNormal;
+        context.font = game.fonts.large;
+        context.fillText(this.title, this.x + 5, this.y);
+        context.font = game.fonts.medium;
+        context.fillText(this.text, this.x + 5, this.y + 35);
     }
 }
 
