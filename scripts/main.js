@@ -44,6 +44,7 @@ var Game = /** @class */ (function () {
         this.grid.update();
         this.blockTray.update();
         this.upgradeTray.update();
+        this.points.update();
     };
     Game.prototype.draw = function () {
         this.context.clearRect(0, 0, 800, 600);
@@ -123,8 +124,6 @@ var Grid = /** @class */ (function () {
         this.paddedSize = this.size - this.padding;
         this.paddedOffsetX = this.offsetX + this.padding;
         this.paddedOffsetY = this.offsetY + this.padding;
-        this.updateTime = 1000;
-        this.currentTime = 0;
     }
     Grid.prototype.init = function () {
         this.grid = [];
@@ -145,17 +144,8 @@ var Grid = /** @class */ (function () {
                 for (var y = 0; y < this.height; y++) {
                     if (this.grid[x][y] === BlockType.Empty && pointWithinRectangle(inputX, inputY, this.paddedOffsetX + x * this.size, this.paddedOffsetY + y * this.size, this.paddedSize, this.paddedSize)) {
                         this.grid[x][y] = game.blockTray.purchase();
+                        this.updatePointsPerTick();
                     }
-                }
-            }
-        }
-        this.currentTime += game.updateInterval;
-        if (this.currentTime >= this.updateTime) {
-            this.currentTime -= this.updateTime;
-            for (var x = 0; x < this.width; x++) {
-                for (var y = 0; y < this.height; y++) {
-                    var cell = this.grid[x][y];
-                    game.points.points += cell;
                 }
             }
         }
@@ -176,7 +166,7 @@ var Grid = /** @class */ (function () {
             }
         }
     };
-    Grid.prototype.adjustGrid = function () {
+    Grid.prototype.adjustGridSize = function () {
         for (var x = 0; x < this.width; x++) {
             if (this.grid.length > x) {
                 var arr = this.grid[x];
@@ -194,16 +184,62 @@ var Grid = /** @class */ (function () {
             }
         }
     };
+    Grid.prototype.updatePointsPerTick = function () {
+        var pointGrid = [];
+        for (var x = 0; x < this.width; x++) {
+            var arr = [];
+            for (var y = 0; y < this.height; y++) {
+                arr.push(this.grid[x][y] === BlockType.Incrementor ? 1 : 0);
+            }
+            pointGrid.push(arr);
+        }
+        for (var x = 0; x < this.width; x++) {
+            for (var y = 0; y < this.height; y++) {
+                if (this.grid[x][y] === BlockType.Adder) {
+                    this.tryIncrementCoord(x - 1, y, pointGrid);
+                    this.tryIncrementCoord(x + 1, y, pointGrid);
+                    this.tryIncrementCoord(x, y - 1, pointGrid);
+                    this.tryIncrementCoord(x, y + 1, pointGrid);
+                }
+            }
+        }
+        var total = 0;
+        for (var x = 0; x < this.width; x++) {
+            for (var y = 0; y < this.height; y++) {
+                total += pointGrid[x][y];
+            }
+        }
+        game.points.pointsPerTick = total;
+    };
+    Grid.prototype.getBlockTypeOfCoord = function (x, y) {
+        return x <= -1 || y <= -1 || x >= this.width || y >= this.height ? BlockType.Empty : this.grid[x][y];
+    };
+    Grid.prototype.tryIncrementCoord = function (x, y, pointGrid) {
+        if (this.getBlockTypeOfCoord(x, y) === BlockType.Incrementor) {
+            pointGrid[x][y]++;
+        }
+    };
     return Grid;
 }());
 var Points = /** @class */ (function () {
     function Points() {
-        this.points = 10;
+        this.points = 1000;
+        this.pointsPerTick = 0;
+        this.updateTime = 1000;
+        this.currentTime = 0;
     }
+    Points.prototype.update = function () {
+        this.currentTime += game.updateInterval;
+        if (this.currentTime >= this.updateTime) {
+            this.currentTime -= this.updateTime;
+            this.points += this.pointsPerTick;
+        }
+    };
     Points.prototype.draw = function (context) {
         context.font = game.fonts.large;
         context.fillStyle = game.colours.textNormal;
         context.fillText(this.points.toString(), 20, 550);
+        context.fillText('+' + this.pointsPerTick.toString() + '/s', 20, 580);
     };
     return Points;
 }());
@@ -294,7 +330,7 @@ var UpgradeTray = /** @class */ (function () {
             new UpgradeInfo(15, 'Bigger grid', 'Increases the size of the grid by 1.', '+', function () {
                 game.grid.width += 1;
                 game.grid.height += 1;
-                game.grid.adjustGrid();
+                game.grid.adjustGridSize();
             })
         ];
     };

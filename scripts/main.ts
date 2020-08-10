@@ -76,6 +76,8 @@ class Game {
         this.blockTray.update();
 
         this.upgradeTray.update();
+
+        this.points.update();
     }
 
     draw() {
@@ -172,9 +174,6 @@ class Grid {
     paddedOffsetX = this.offsetX + this.padding;
     paddedOffsetY = this.offsetY + this.padding;
 
-    updateTime = 1000;
-    currentTime = 0;
-
     grid: BlockType[][];
 
     init() {
@@ -201,19 +200,8 @@ class Grid {
                         this.paddedOffsetY + y * this.size,
                         this.paddedSize, this.paddedSize)) {
                         this.grid[x][y] = game.blockTray.purchase();
+                        this.updatePointsPerTick();
                     }
-                }
-            }
-        }
-
-        this.currentTime += game.updateInterval;
-        if (this.currentTime >= this.updateTime) {
-            this.currentTime -= this.updateTime;
-
-            for (let x = 0; x < this.width; x++) {
-                for (let y = 0; y < this.height; y++) {
-                    const cell = this.grid[x][y];
-                    game.points.points += cell;
                 }
             }
         }
@@ -244,7 +232,7 @@ class Grid {
         }
     }
 
-    adjustGrid() {
+    adjustGridSize() {
         for (let x = 0; x < this.width; x++) {
             if (this.grid.length > x) {
                 const arr = this.grid[x];
@@ -262,15 +250,71 @@ class Grid {
             }
         }
     }
+
+    updatePointsPerTick() {
+        const pointGrid: number[][] = [];
+
+        for (let x = 0; x < this.width; x++) {
+            const arr: number[] = [];
+            for (let y = 0; y < this.height; y++) {
+                arr.push(this.grid[x][y] === BlockType.Incrementor ? 1 : 0);
+            }
+            pointGrid.push(arr);
+        }
+
+        for (let x = 0; x < this.width; x++) {
+            for (let y = 0; y < this.height; y++) {
+                if (this.grid[x][y] === BlockType.Adder) {
+                    this.tryIncrementCoord(x - 1, y, pointGrid);
+                    this.tryIncrementCoord(x + 1, y, pointGrid);
+                    this.tryIncrementCoord(x, y - 1, pointGrid);
+                    this.tryIncrementCoord(x, y + 1, pointGrid);
+                }
+            }
+        }
+
+        let total = 0;
+        for (let x = 0; x < this.width; x++) {
+            for (let y = 0; y < this.height; y++) {
+                total += pointGrid[x][y];
+            }
+        }
+
+        game.points.pointsPerTick = total;
+    }
+
+    getBlockTypeOfCoord(x: number, y: number) {
+        return x <= -1 || y <= -1 || x >= this.width || y >= this.height ? BlockType.Empty : this.grid[x][y];
+    }
+
+    tryIncrementCoord(x: number, y: number, pointGrid: number[][]) {
+        if (this.getBlockTypeOfCoord(x, y) === BlockType.Incrementor) {
+            pointGrid[x][y]++;
+        }
+    }
 }
 
 class Points {
-    points = 10;
+    points = 1000;
+    pointsPerTick = 0;
+    updateTime = 1000;
+    currentTime = 0;
+
+    update() {
+        this.currentTime += game.updateInterval;
+        if (this.currentTime >= this.updateTime) {
+            this.currentTime -= this.updateTime;
+
+            this.points += this.pointsPerTick;
+        }
+    }
 
     draw(context: Context) {
         context.font = game.fonts.large;
         context.fillStyle = game.colours.textNormal;
         context.fillText(this.points.toString(), 20, 550);
+
+        context.fillText('+' + this.pointsPerTick.toString() + '/s', 20, 580);
     }
 }
 
@@ -375,7 +419,7 @@ class UpgradeTray {
             new UpgradeInfo(15, 'Bigger grid', 'Increases the size of the grid by 1.', '+', () => {
                 game.grid.width += 1;
                 game.grid.height += 1;
-                game.grid.adjustGrid();
+                game.grid.adjustGridSize();
             })
         ]
     }
