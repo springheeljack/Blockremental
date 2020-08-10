@@ -253,6 +253,7 @@ class Grid {
 
     updatePointsPerTick() {
         const pointGrid: number[][] = [];
+        const adderGrid: number[][] = [];
 
         for (let x = 0; x < this.width; x++) {
             const arr: number[] = [];
@@ -263,12 +264,31 @@ class Grid {
         }
 
         for (let x = 0; x < this.width; x++) {
+            const arr: number[] = [];
+            for (let y = 0; y < this.height; y++) {
+                arr.push(this.grid[x][y] === BlockType.Adder ? 1 : 0);
+            }
+            adderGrid.push(arr);
+        }
+
+        for (let x = 0; x < this.width; x++) {
+            for (let y = 0; y < this.height; y++) {
+                if (this.grid[x][y] === BlockType.Doubler) {
+                    this.tryDoubleCoord(x - 1, y, adderGrid);
+                    this.tryDoubleCoord(x + 1, y, adderGrid);
+                    this.tryDoubleCoord(x, y - 1, adderGrid);
+                    this.tryDoubleCoord(x, y + 1, adderGrid);
+                }
+            }
+        }
+
+        for (let x = 0; x < this.width; x++) {
             for (let y = 0; y < this.height; y++) {
                 if (this.grid[x][y] === BlockType.Adder) {
-                    this.tryIncrementCoord(x - 1, y, pointGrid);
-                    this.tryIncrementCoord(x + 1, y, pointGrid);
-                    this.tryIncrementCoord(x, y - 1, pointGrid);
-                    this.tryIncrementCoord(x, y + 1, pointGrid);
+                    this.tryIncrementCoord(x - 1, y, pointGrid, adderGrid[x][y]);
+                    this.tryIncrementCoord(x + 1, y, pointGrid, adderGrid[x][y]);
+                    this.tryIncrementCoord(x, y - 1, pointGrid, adderGrid[x][y]);
+                    this.tryIncrementCoord(x, y + 1, pointGrid, adderGrid[x][y]);
                 }
             }
         }
@@ -287,9 +307,15 @@ class Grid {
         return x <= -1 || y <= -1 || x >= this.width || y >= this.height ? BlockType.Empty : this.grid[x][y];
     }
 
-    tryIncrementCoord(x: number, y: number, pointGrid: number[][]) {
+    tryIncrementCoord(x: number, y: number, grid: number[][], incrementAmount: number) {
         if (this.getBlockTypeOfCoord(x, y) === BlockType.Incrementor) {
-            pointGrid[x][y]++;
+            grid[x][y] += incrementAmount;
+        }
+    }
+
+    tryDoubleCoord(x: number, y: number, grid: number[][]) {
+        if (this.getBlockTypeOfCoord(x, y) === BlockType.Adder) {
+            grid[x][y] *= 2;
         }
     }
 }
@@ -346,8 +372,9 @@ class BlockTray {
 
     init() {
         this.blocks = [
-            new BlockInfo(10, 1, 'Incrementor', 'I', 'Collects 1 point per second.'),
-            new BlockInfo(20, 2, 'Adder', 'A', 'Increases the points collected by adjacent Incrementors by 1.'),
+            new BlockInfo(10, BlockType.Incrementor, 'Incrementor', 'I', 'Collects 1 point per second.'),
+            new BlockInfo(20, BlockType.Adder, 'Adder', 'A', 'Increases the points collected by adjacent Incrementors by 1.'),
+            new BlockInfo(30, BlockType.Doubler, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
         ]
     }
 
@@ -531,6 +558,7 @@ enum BlockType {
     Empty = 0,
     Incrementor = 1,
     Adder = 2,
+    Doubler = 3
 }
 
 window.onload = main;
