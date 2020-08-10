@@ -175,14 +175,14 @@ class Grid {
     updateTime = 1000;
     currentTime = 0;
 
-    grid: number[][];
+    grid: BlockType[][];
 
     init() {
         this.grid = [];
         for (let x = 0; x < this.width; x++) {
-            const arr = [];
+            const arr: BlockType[] = [];
             for (let y = 0; y < this.height; y++) {
-                arr.push(0);
+                arr.push(BlockType.Empty);
             }
             this.grid.push(arr);
         }
@@ -196,7 +196,7 @@ class Grid {
         if (input.isClicked() && game.blockTray.canPurchase()) {
             for (let x = 0; x < this.width; x++) {
                 for (let y = 0; y < this.height; y++) {
-                    if (this.grid[x][y] === 0 && pointWithinRectangle(inputX, inputY,
+                    if (this.grid[x][y] === BlockType.Empty && pointWithinRectangle(inputX, inputY,
                         this.paddedOffsetX + x * this.size,
                         this.paddedOffsetY + y * this.size,
                         this.paddedSize, this.paddedSize)) {
@@ -237,7 +237,7 @@ class Grid {
                     this.paddedSize);
 
                 const cell = this.grid[x][y];
-                if (cell !== 0) {
+                if (cell !== BlockType.Empty) {
                     context.fillText(cell.toString(), rectX + 10, rectY + 35);
                 }
             }
@@ -249,14 +249,14 @@ class Grid {
             if (this.grid.length > x) {
                 const arr = this.grid[x];
                 for (let toAdd = this.height - arr.length; toAdd--; toAdd > 0) {
-                    arr.push(0);
+                    arr.push(BlockType.Empty);
                 }
                 this.grid[x] = arr;
             }
             else {
                 const arr = [];
                 for (let y = 0; y < this.height; y++) {
-                    arr.push(0);
+                    arr.push(BlockType.Empty);
                 }
                 this.grid.push(arr);
             }
@@ -277,9 +277,10 @@ class Points {
 class BlockInfo {
     constructor(
         public cost: number,
-        public id: number,
+        public type: BlockType,
         public name: string,
         public char: string,
+        public description: string,
     ) { }
 
     draw(context: Context, x: number, y: number, selected: boolean) {
@@ -301,22 +302,26 @@ class BlockTray {
 
     init() {
         this.blocks = [
-            new BlockInfo(10, 1, 'Incrementer', 'I'),
-            new BlockInfo(20, 2, 'Adder', 'A'),
+            new BlockInfo(10, 1, 'Incrementor', 'I', 'Collects 1 point per second.'),
+            new BlockInfo(20, 2, 'Adder', 'A', 'Increases the points collected by adjacent Incrementors by 1.'),
         ]
     }
 
     update() {
         const input = game.input;
 
-        if (input.isClicked()) {
-            const x = input.getX();
-            const y = input.getY();
+        const x = input.getX();
+        const y = input.getY();
 
-            for (let i = 0; i < this.blocks.length; i++) {
-                if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+        for (let i = 0; i < this.blocks.length; i++) {
+            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+                const block = this.blocks[i];
+
+                if (input.isClicked()) {
                     this.selected = this.selected === i ? -1 : i;
                 }
+
+                game.tooltip = new Tooltip(block.name, block.description, x, y, block.cost);
             }
         }
     }
@@ -336,7 +341,7 @@ class BlockTray {
 
         game.points.points -= block.cost;
 
-        return block.id;
+        return block.type;
     }
 }
 
@@ -476,6 +481,12 @@ function pointWithinRectangle(px: number, py: number, rx: number, ry: number, rw
         && px <= rx + rw
         && py >= ry
         && py <= ry + rh;
+}
+
+enum BlockType {
+    Empty = 0,
+    Incrementor = 1,
+    Adder = 2,
 }
 
 window.onload = main;

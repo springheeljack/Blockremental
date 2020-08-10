@@ -131,7 +131,7 @@ var Grid = /** @class */ (function () {
         for (var x = 0; x < this.width; x++) {
             var arr = [];
             for (var y = 0; y < this.height; y++) {
-                arr.push(0);
+                arr.push(BlockType.Empty);
             }
             this.grid.push(arr);
         }
@@ -143,7 +143,7 @@ var Grid = /** @class */ (function () {
         if (input.isClicked() && game.blockTray.canPurchase()) {
             for (var x = 0; x < this.width; x++) {
                 for (var y = 0; y < this.height; y++) {
-                    if (this.grid[x][y] === 0 && pointWithinRectangle(inputX, inputY, this.paddedOffsetX + x * this.size, this.paddedOffsetY + y * this.size, this.paddedSize, this.paddedSize)) {
+                    if (this.grid[x][y] === BlockType.Empty && pointWithinRectangle(inputX, inputY, this.paddedOffsetX + x * this.size, this.paddedOffsetY + y * this.size, this.paddedSize, this.paddedSize)) {
                         this.grid[x][y] = game.blockTray.purchase();
                     }
                 }
@@ -170,7 +170,7 @@ var Grid = /** @class */ (function () {
                 var rectY = this.paddedOffsetY + y * this.size;
                 context.strokeRect(rectX, rectY, this.paddedSize, this.paddedSize);
                 var cell = this.grid[x][y];
-                if (cell !== 0) {
+                if (cell !== BlockType.Empty) {
                     context.fillText(cell.toString(), rectX + 10, rectY + 35);
                 }
             }
@@ -181,14 +181,14 @@ var Grid = /** @class */ (function () {
             if (this.grid.length > x) {
                 var arr = this.grid[x];
                 for (var toAdd = this.height - arr.length; toAdd--; toAdd > 0) {
-                    arr.push(0);
+                    arr.push(BlockType.Empty);
                 }
                 this.grid[x] = arr;
             }
             else {
                 var arr = [];
                 for (var y = 0; y < this.height; y++) {
-                    arr.push(0);
+                    arr.push(BlockType.Empty);
                 }
                 this.grid.push(arr);
             }
@@ -208,11 +208,12 @@ var Points = /** @class */ (function () {
     return Points;
 }());
 var BlockInfo = /** @class */ (function () {
-    function BlockInfo(cost, id, name, char) {
+    function BlockInfo(cost, type, name, char, description) {
         this.cost = cost;
-        this.id = id;
+        this.type = type;
         this.name = name;
         this.char = char;
+        this.description = description;
     }
     BlockInfo.prototype.draw = function (context, x, y, selected) {
         context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
@@ -232,19 +233,21 @@ var BlockTray = /** @class */ (function () {
     }
     BlockTray.prototype.init = function () {
         this.blocks = [
-            new BlockInfo(10, 1, 'Incrementer', 'I'),
-            new BlockInfo(20, 2, 'Adder', 'A'),
+            new BlockInfo(10, 1, 'Incrementor', 'I', 'Collects 1 point per second.'),
+            new BlockInfo(20, 2, 'Adder', 'A', 'Increases the points collected by adjacent Incrementors by 1.'),
         ];
     };
     BlockTray.prototype.update = function () {
         var input = game.input;
-        if (input.isClicked()) {
-            var x = input.getX();
-            var y = input.getY();
-            for (var i = 0; i < this.blocks.length; i++) {
-                if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+        var x = input.getX();
+        var y = input.getY();
+        for (var i = 0; i < this.blocks.length; i++) {
+            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+                var block = this.blocks[i];
+                if (input.isClicked()) {
                     this.selected = this.selected === i ? -1 : i;
                 }
+                game.tooltip = new Tooltip(block.name, block.description, x, y, block.cost);
             }
         }
     };
@@ -259,7 +262,7 @@ var BlockTray = /** @class */ (function () {
     BlockTray.prototype.purchase = function () {
         var block = this.blocks[this.selected];
         game.points.points -= block.cost;
-        return block.id;
+        return block.type;
     };
     return BlockTray;
 }());
@@ -378,5 +381,11 @@ function pointWithinRectangle(px, py, rx, ry, rw, rh) {
         && py >= ry
         && py <= ry + rh;
 }
+var BlockType;
+(function (BlockType) {
+    BlockType[BlockType["Empty"] = 0] = "Empty";
+    BlockType[BlockType["Incrementor"] = 1] = "Incrementor";
+    BlockType[BlockType["Adder"] = 2] = "Adder";
+})(BlockType || (BlockType = {}));
 window.onload = main;
 //# sourceMappingURL=main.js.map
