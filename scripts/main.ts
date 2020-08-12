@@ -23,6 +23,8 @@ class Game {
     blockTray: BlockTray;
     upgradeTray: UpgradeTray;
     tooltip: Tooltip;
+    blocks: BlockInfo[];
+    blocksDict = {} as Record<BlockType, BlockInfo>;
 
     updateInterval = 1000 / 60;
     drawInterval = 1000 / 60;
@@ -57,6 +59,8 @@ class Game {
     }
 
     init() {
+        this.setupBlocks();
+
         this.input = new Input(this.canvas);
 
         this.points = new Points();
@@ -65,7 +69,6 @@ class Game {
         this.grid.init();
 
         this.blockTray = new BlockTray();
-        this.blockTray.init();
 
         this.upgradeTray = new UpgradeTray();
         this.upgradeTray.init();
@@ -107,6 +110,22 @@ class Game {
 
     startDrawing() {
         setInterval(() => this.draw(), this.drawInterval);
+    }
+
+    setupBlocks() {
+        this.blocks = [
+            new BlockInfo(BlockType.Incrementor, 10, 'Incrementor', 'I', 'Generates 1 point per second. TEST'),
+            new BlockInfo(BlockType.Adder, 20, 'Adder', 'A', 'Increases the points collected by adjacent incrementors by 1.'),
+            new BlockInfo(BlockType.Doubler, 30, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
+            new BlockInfo(BlockType.EdgeCase, 40, 'Edge Case', 'E', 'Increases points per second by 5% for each adjacent grid edge.'),
+            new BlockInfo(BlockType.VoidIncrementor, 50, 'Void Incrementor', 'V', 'Generates 1 point for each adjacent grid edge or empty cell.'),
+        ];
+
+        this.blocks.forEach(x => this.blocksDict[x.type] = x);
+    }
+
+    getBlockInfo(blockType: BlockType) {
+        return this.blocks.filter(x => x.type === blockType)[0];
     }
 }
 
@@ -277,7 +296,8 @@ class Grid {
 
                 const cell = this.grid[x][y];
                 if (cell !== BlockType.Empty) {
-                    context.fillText(cell.toString(), rectX + 10, rectY + 35);
+                    const block = game.blocksDict[cell] as BlockInfo;
+                    context.fillText(block.char, rectX + 10, rectY + 35);
                 }
             }
         }
@@ -449,21 +469,12 @@ class Points {
 
 class BlockInfo {
     constructor(
-        public cost: number,
         public type: BlockType,
+        public cost: number,
         public name: string,
         public char: string,
         public description: string,
     ) { }
-
-    draw(context: Context, x: number, y: number, selected: boolean) {
-        context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
-        context.strokeRect(x, y, 45, 45);
-
-        context.font = game.fonts.large;
-        context.fillStyle = selected ? game.colours.textGood : game.colours.textNormal;
-        context.fillText(this.char, x + 10, y + 35);
-    }
 }
 
 class BlockTray {
@@ -473,25 +484,15 @@ class BlockTray {
     offsetX = 20;
     offsetY = 450;
 
-    init() {
-        this.blocks = [
-            new BlockInfo(10, BlockType.Incrementor, 'Incrementor', 'I', 'Generates 1 point per second.'),
-            new BlockInfo(20, BlockType.Adder, 'Adder', 'A', 'Increases the points collected by adjacent incrementors by 1.'),
-            new BlockInfo(30, BlockType.Doubler, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
-            new BlockInfo(40, BlockType.EdgeCase, 'Edge Case', 'E', 'Increases points per second by 5% for each adjacent grid edge.'),
-            new BlockInfo(50, BlockType.VoidIncrementor, 'Void Incrementor', 'V', 'Generates 1 point for each adjacent grid edge or empty cell.'),
-        ]
-    }
-
     update() {
         const input = game.input;
 
         const x = input.getX();
         const y = input.getY();
 
-        for (let i = 0; i < this.blocks.length; i++) {
+        for (let i = 0; i < game.blocks.length; i++) {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
-                const block = this.blocks[i];
+                const block = game.blocks[i];
 
                 if (input.isClicked(MouseButton.Left)) {
                     this.selected = this.selected === i ? -1 : i;
@@ -503,17 +504,27 @@ class BlockTray {
     }
 
     draw(context: Context) {
-        for (let i = 0; i < this.blocks.length; i++) {
-            this.blocks[i].draw(context, this.offsetX + (50 * i), this.offsetY, i === this.selected);
+        for (let i = 0; i < game.blocks.length; i++) {
+            const block = game.blocks[i];
+
+            const selected = i === this.selected;
+            const x = this.offsetX + (50 * i);
+
+            context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
+            context.strokeRect(x, this.offsetY, 45, 45);
+
+            context.font = game.fonts.large;
+            context.fillStyle = selected ? game.colours.textGood : game.colours.textNormal;
+            context.fillText(block.char, x + 10, this.offsetY + 35);
         }
     }
 
     canPurchase() {
-        return this.selected !== -1 && game.points.points >= this.blocks[this.selected].cost;
+        return this.selected !== -1 && game.points.points >= game.blocks[this.selected].cost;
     }
 
     purchase() {
-        const block = this.blocks[this.selected];
+        const block = game.blocks[this.selected];
 
         game.points.points -= block.cost;
 

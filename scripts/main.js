@@ -7,6 +7,7 @@ function main() {
 }
 var Game = /** @class */ (function () {
     function Game() {
+        this.blocksDict = {};
         this.updateInterval = 1000 / 60;
         this.drawInterval = 1000 / 60;
         this.colours = {
@@ -31,12 +32,12 @@ var Game = /** @class */ (function () {
         this.height = window.innerHeight;
     }
     Game.prototype.init = function () {
+        this.setupBlocks();
         this.input = new Input(this.canvas);
         this.points = new Points();
         this.grid = new Grid();
         this.grid.init();
         this.blockTray = new BlockTray();
-        this.blockTray.init();
         this.upgradeTray = new UpgradeTray();
         this.upgradeTray.init();
     };
@@ -65,6 +66,20 @@ var Game = /** @class */ (function () {
     Game.prototype.startDrawing = function () {
         var _this = this;
         setInterval(function () { return _this.draw(); }, this.drawInterval);
+    };
+    Game.prototype.setupBlocks = function () {
+        var _this = this;
+        this.blocks = [
+            new BlockInfo(BlockType.Incrementor, 10, 'Incrementor', 'I', 'Generates 1 point per second. TEST'),
+            new BlockInfo(BlockType.Adder, 20, 'Adder', 'A', 'Increases the points collected by adjacent incrementors by 1.'),
+            new BlockInfo(BlockType.Doubler, 30, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
+            new BlockInfo(BlockType.EdgeCase, 40, 'Edge Case', 'E', 'Increases points per second by 5% for each adjacent grid edge.'),
+            new BlockInfo(BlockType.VoidIncrementor, 50, 'Void Incrementor', 'V', 'Generates 1 point for each adjacent grid edge or empty cell.'),
+        ];
+        this.blocks.forEach(function (x) { return _this.blocksDict[x.type] = x; });
+    };
+    Game.prototype.getBlockInfo = function (blockType) {
+        return this.blocks.filter(function (x) { return x.type === blockType; })[0];
     };
     return Game;
 }());
@@ -201,7 +216,8 @@ var Grid = /** @class */ (function () {
                 context.strokeRect(rectX, rectY, this.paddedSize, this.paddedSize);
                 var cell = this.grid[x][y];
                 if (cell !== BlockType.Empty) {
-                    context.fillText(cell.toString(), rectX + 10, rectY + 35);
+                    var block = game.blocksDict[cell];
+                    context.fillText(block.char, rectX + 10, rectY + 35);
                 }
             }
         }
@@ -351,20 +367,13 @@ var Points = /** @class */ (function () {
     return Points;
 }());
 var BlockInfo = /** @class */ (function () {
-    function BlockInfo(cost, type, name, char, description) {
-        this.cost = cost;
+    function BlockInfo(type, cost, name, char, description) {
         this.type = type;
+        this.cost = cost;
         this.name = name;
         this.char = char;
         this.description = description;
     }
-    BlockInfo.prototype.draw = function (context, x, y, selected) {
-        context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
-        context.strokeRect(x, y, 45, 45);
-        context.font = game.fonts.large;
-        context.fillStyle = selected ? game.colours.textGood : game.colours.textNormal;
-        context.fillText(this.char, x + 10, y + 35);
-    };
     return BlockInfo;
 }());
 var BlockTray = /** @class */ (function () {
@@ -374,22 +383,13 @@ var BlockTray = /** @class */ (function () {
         this.offsetX = 20;
         this.offsetY = 450;
     }
-    BlockTray.prototype.init = function () {
-        this.blocks = [
-            new BlockInfo(10, BlockType.Incrementor, 'Incrementor', 'I', 'Generates 1 point per second.'),
-            new BlockInfo(20, BlockType.Adder, 'Adder', 'A', 'Increases the points collected by adjacent incrementors by 1.'),
-            new BlockInfo(30, BlockType.Doubler, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
-            new BlockInfo(40, BlockType.EdgeCase, 'Edge Case', 'E', 'Increases points per second by 5% for each adjacent grid edge.'),
-            new BlockInfo(50, BlockType.VoidIncrementor, 'Void Incrementor', 'V', 'Generates 1 point for each adjacent grid edge or empty cell.'),
-        ];
-    };
     BlockTray.prototype.update = function () {
         var input = game.input;
         var x = input.getX();
         var y = input.getY();
-        for (var i = 0; i < this.blocks.length; i++) {
+        for (var i = 0; i < game.blocks.length; i++) {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
-                var block = this.blocks[i];
+                var block = game.blocks[i];
                 if (input.isClicked(MouseButton.Left)) {
                     this.selected = this.selected === i ? -1 : i;
                 }
@@ -398,15 +398,22 @@ var BlockTray = /** @class */ (function () {
         }
     };
     BlockTray.prototype.draw = function (context) {
-        for (var i = 0; i < this.blocks.length; i++) {
-            this.blocks[i].draw(context, this.offsetX + (50 * i), this.offsetY, i === this.selected);
+        for (var i = 0; i < game.blocks.length; i++) {
+            var block = game.blocks[i];
+            var selected = i === this.selected;
+            var x = this.offsetX + (50 * i);
+            context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
+            context.strokeRect(x, this.offsetY, 45, 45);
+            context.font = game.fonts.large;
+            context.fillStyle = selected ? game.colours.textGood : game.colours.textNormal;
+            context.fillText(block.char, x + 10, this.offsetY + 35);
         }
     };
     BlockTray.prototype.canPurchase = function () {
-        return this.selected !== -1 && game.points.points >= this.blocks[this.selected].cost;
+        return this.selected !== -1 && game.points.points >= game.blocks[this.selected].cost;
     };
     BlockTray.prototype.purchase = function () {
-        var block = this.blocks[this.selected];
+        var block = game.blocks[this.selected];
         game.points.points -= block.cost;
         return block.type;
     };
