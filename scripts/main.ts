@@ -309,7 +309,13 @@ class Grid {
         for (let x = 0; x < this.width; x++) {
             const arr: number[] = [];
             for (let y = 0; y < this.height; y++) {
-                arr.push(this.grid[x][y] === BlockType.Incrementor ? 1 : 0);
+                const blockType = this.grid[x][y];
+                if (blockType === BlockType.Incrementor)
+                    arr.push(1);
+                else if (blockType === BlockType.VoidIncrementor)
+                    arr.push(this.getVoidPoints(x, y));
+                else
+                    arr.push(0);
             }
             pointGrid.push(arr);
         }
@@ -369,7 +375,9 @@ class Grid {
     }
 
     tryIncrementCoord(x: number, y: number, grid: number[][], incrementAmount: number) {
-        if (this.getBlockTypeOfCoord(x, y) === BlockType.Incrementor) {
+        const blockType = this.getBlockTypeOfCoord(x, y);
+        if (blockType === BlockType.Incrementor
+            || blockType === BlockType.VoidIncrementor) {
             grid[x][y] += incrementAmount;
         }
     }
@@ -382,6 +390,7 @@ class Grid {
 
     getEdgesTouched(x: number, y: number) {
         let edgesTouched = 0;
+
         if (x === 0)
             edgesTouched++;
         if (y === 0)
@@ -390,11 +399,27 @@ class Grid {
             edgesTouched++;
         if (y === this.height - 1)
             edgesTouched++;
+
         return edgesTouched;
     }
 
     getEdgeMultiplier(x: number, y: number) {
         return 1.05 ** this.getEdgesTouched(x, y);
+    }
+
+    getVoidPoints(x: number, y: number) {
+        let points = 0;
+
+        if (this.getBlockTypeOfCoord(x - 1, y) === BlockType.Empty)
+            points++;
+        if (this.getBlockTypeOfCoord(x + 1, y) === BlockType.Empty)
+            points++;
+        if (this.getBlockTypeOfCoord(x, y - 1) === BlockType.Empty)
+            points++;
+        if (this.getBlockTypeOfCoord(x, y + 1) === BlockType.Empty)
+            points++;
+
+        return points;
     }
 }
 
@@ -418,7 +443,7 @@ class Points {
         context.fillStyle = game.colours.textNormal;
         context.fillText(this.points.toFixed(), 20, 550);
 
-        context.fillText('+' + this.pointsPerTick.toFixed(1) + '/s', 20, 580);
+        context.fillText(this.pointsPerTick.toFixed(1) + '/s', 20, 580);
     }
 }
 
@@ -450,10 +475,11 @@ class BlockTray {
 
     init() {
         this.blocks = [
-            new BlockInfo(10, BlockType.Incrementor, 'Incrementor', 'I', 'Collects 1 point per second.'),
-            new BlockInfo(20, BlockType.Adder, 'Adder', 'A', 'Increases the points collected by adjacent Incrementors by 1.'),
+            new BlockInfo(10, BlockType.Incrementor, 'Incrementor', 'I', 'Generates 1 point per second.'),
+            new BlockInfo(20, BlockType.Adder, 'Adder', 'A', 'Increases the points collected by adjacent incrementors by 1.'),
             new BlockInfo(30, BlockType.Doubler, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
-            new BlockInfo(40, BlockType.EdgeCase, 'Edge Case', 'E', 'Increases points per second by 5%.'),
+            new BlockInfo(40, BlockType.EdgeCase, 'Edge Case', 'E', 'Increases points per second by 5% for each adjacent grid edge.'),
+            new BlockInfo(50, BlockType.VoidIncrementor, 'Void Incrementor', 'V', 'Generates 1 point for each adjacent grid edge or empty cell.'),
         ]
     }
 
@@ -639,6 +665,7 @@ enum BlockType {
     Adder = 2,
     Doubler = 3,
     EdgeCase = 4,
+    VoidIncrementor = 5,
 }
 
 enum MouseButton {
