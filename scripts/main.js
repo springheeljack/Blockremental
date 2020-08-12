@@ -27,6 +27,8 @@ var Game = /** @class */ (function () {
         this.context = this.canvas.getContext('2d');
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
     }
     Game.prototype.init = function () {
         this.input = new Input(this.canvas);
@@ -47,7 +49,7 @@ var Game = /** @class */ (function () {
         this.points.update();
     };
     Game.prototype.draw = function () {
-        this.context.clearRect(0, 0, 800, 600);
+        this.context.clearRect(0, 0, this.width, this.height);
         this.points.draw(this.context);
         this.grid.draw(this.context);
         this.blockTray.draw(this.context);
@@ -265,6 +267,16 @@ var Grid = /** @class */ (function () {
                 total += pointGrid[x][y];
             }
         }
+        var edgeMult = 1;
+        for (var x = 0; x < this.width; x++) {
+            for (var y = 0; y < this.height; y++) {
+                if (this.grid[x][y] === BlockType.EdgeCase) {
+                    edgeMult *= this.getEdgeMultiplier(x, y);
+                }
+            }
+        }
+        total *= edgeMult;
+        console.log(edgeMult);
         game.points.pointsPerTick = total;
     };
     Grid.prototype.getBlockTypeOfCoord = function (x, y) {
@@ -279,6 +291,23 @@ var Grid = /** @class */ (function () {
         if (this.getBlockTypeOfCoord(x, y) === BlockType.Adder) {
             grid[x][y] *= 2;
         }
+    };
+    Grid.prototype.getEdgesTouched = function (x, y) {
+        var edgesTouched = 0;
+        if (x === 0)
+            edgesTouched++;
+        if (y === 0)
+            edgesTouched++;
+        if (x === this.width - 1)
+            edgesTouched++;
+        if (y === this.height - 1)
+            edgesTouched++;
+        return edgesTouched;
+    };
+    Grid.prototype.getEdgeMultiplier = function (x, y) {
+        var edgesTouched = this.getEdgesTouched(x, y);
+        //console.log(edgesTouched);
+        return Math.pow(1.05, edgesTouched);
     };
     return Grid;
 }());
@@ -333,6 +362,7 @@ var BlockTray = /** @class */ (function () {
             new BlockInfo(10, BlockType.Incrementor, 'Incrementor', 'I', 'Collects 1 point per second.'),
             new BlockInfo(20, BlockType.Adder, 'Adder', 'A', 'Increases the points collected by adjacent Incrementors by 1.'),
             new BlockInfo(30, BlockType.Doubler, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
+            new BlockInfo(40, BlockType.EdgeCase, 'Edge Case', 'E', 'Increases points per second by 5%.'),
         ];
     };
     BlockTray.prototype.update = function () {
@@ -485,6 +515,7 @@ var BlockType;
     BlockType[BlockType["Incrementor"] = 1] = "Incrementor";
     BlockType[BlockType["Adder"] = 2] = "Adder";
     BlockType[BlockType["Doubler"] = 3] = "Doubler";
+    BlockType[BlockType["EdgeCase"] = 4] = "EdgeCase";
 })(BlockType || (BlockType = {}));
 var MouseButton;
 (function (MouseButton) {

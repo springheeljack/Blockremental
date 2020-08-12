@@ -2,3 +2,6 @@ block that increases total points by x% for each edge touched
 block that affects a whole line
 block that must touch 2 other types of blocks
 block that does something when it touches nothing
+
+achievements:
+	Useless - have an edge case touching 4 edges
