@@ -276,7 +276,6 @@ var Grid = /** @class */ (function () {
             }
         }
         total *= edgeMult;
-        console.log(edgeMult);
         game.points.pointsPerTick = total;
     };
     Grid.prototype.getBlockTypeOfCoord = function (x, y) {
@@ -305,9 +304,7 @@ var Grid = /** @class */ (function () {
         return edgesTouched;
     };
     Grid.prototype.getEdgeMultiplier = function (x, y) {
-        var edgesTouched = this.getEdgesTouched(x, y);
-        //console.log(edgesTouched);
-        return Math.pow(1.05, edgesTouched);
+        return Math.pow(1.05, this.getEdgesTouched(x, y));
     };
     return Grid;
 }());
@@ -328,8 +325,8 @@ var Points = /** @class */ (function () {
     Points.prototype.draw = function (context) {
         context.font = game.fonts.large;
         context.fillStyle = game.colours.textNormal;
-        context.fillText(this.points.toString(), 20, 550);
-        context.fillText('+' + this.pointsPerTick.toString() + '/s', 20, 580);
+        context.fillText(this.points.toFixed(), 20, 550);
+        context.fillText('+' + this.pointsPerTick.toFixed(1) + '/s', 20, 580);
     };
     return Points;
 }());

@@ -360,7 +360,6 @@ class Grid {
             }
         }
         total *= edgeMult;
-        console.log(edgeMult);
 
         game.points.pointsPerTick = total;
     }
@@ -395,9 +394,7 @@ class Grid {
     }
 
     getEdgeMultiplier(x: number, y: number) {
-        const edgesTouched = this.getEdgesTouched(x, y);
-        //console.log(edgesTouched);
-        return 1.05 ** edgesTouched;
+        return 1.05 ** this.getEdgesTouched(x, y);
     }
 }
 
@@ -419,9 +416,9 @@ class Points {
     draw(context: Context) {
         context.font = game.fonts.large;
         context.fillStyle = game.colours.textNormal;
-        context.fillText(this.points.toString(), 20, 550);
+        context.fillText(this.points.toFixed(), 20, 550);
 
-        context.fillText('+' + this.pointsPerTick.toString() + '/s', 20, 580);
+        context.fillText('+' + this.pointsPerTick.toFixed(1) + '/s', 20, 580);
     }
 }
 
