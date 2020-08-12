@@ -109,7 +109,8 @@ class MouseState {
     constructor(
         public x: number,
         public y: number,
-        public down: boolean,
+        public left: boolean,
+        public right: boolean,
     ) { }
 }
 
@@ -119,23 +120,38 @@ class Input {
     private runningMouseState: MouseState
 
     constructor(canvas: Canvas) {
-        this.previousMouseState = new MouseState(0, 0, false);
-        this.currentMouseState = new MouseState(0, 0, false);
-        this.runningMouseState = new MouseState(0, 0, false);
+        this.previousMouseState = new MouseState(0, 0, false, false);
+        this.currentMouseState = new MouseState(0, 0, false, false);
+        this.runningMouseState = new MouseState(0, 0, false, false);
 
-        canvas.addEventListener('mousedown', () => this.runningMouseState.down = true);
-        canvas.addEventListener('mouseup', () => this.runningMouseState.down = false);
+        canvas.addEventListener('mousedown', (event) => {
+            if (event.button === MouseButton.Left)
+                this.runningMouseState.left = true;
+            else if (event.button === MouseButton.Right)
+                this.runningMouseState.right = true;
+        });
+        canvas.addEventListener('mouseup', (event) => {
+            if (event.button === MouseButton.Left)
+                this.runningMouseState.left = false;
+            else if (event.button === MouseButton.Right)
+                this.runningMouseState.right = false;
+        });
         canvas.addEventListener('mousemove', (event) => {
             const target = event.currentTarget as Element;
             const rect = target.getBoundingClientRect();
             this.runningMouseState.x = event.clientX - rect.left;
             this.runningMouseState.y = event.clientY - rect.top;
         });
+        canvas.addEventListener('contextmenu', (event) => event.preventDefault());
     }
 
     update() {
         this.previousMouseState = this.currentMouseState;
-        this.currentMouseState = new MouseState(this.runningMouseState.x, this.runningMouseState.y, this.runningMouseState.down);
+        this.currentMouseState = new MouseState(
+            this.runningMouseState.x,
+            this.runningMouseState.y,
+            this.runningMouseState.left,
+            this.runningMouseState.right);
     }
 
     getX() {
@@ -146,20 +162,36 @@ class Input {
         return this.currentMouseState.y;
     }
 
-    isUp() {
-        return !this.currentMouseState.down;
+    isUp(mouseButton: MouseButton) {
+        if (mouseButton === MouseButton.Left)
+            return !this.currentMouseState.left;
+        if (mouseButton === MouseButton.Right)
+            return !this.currentMouseState.right;
+        return false;
     }
 
-    isDown() {
-        return this.currentMouseState.down;
+    isDown(mouseButton: MouseButton) {
+        if (mouseButton === MouseButton.Left)
+            return this.currentMouseState.left;
+        if (mouseButton === MouseButton.Right)
+            return this.currentMouseState.right;
+        return false;
     }
 
-    isClicked() {
-        return this.currentMouseState.down && !this.previousMouseState.down;
+    isClicked(mouseButton: MouseButton) {
+        if (mouseButton === MouseButton.Left)
+            return this.currentMouseState.left && !this.previousMouseState.left
+        if (mouseButton === MouseButton.Right)
+            return this.currentMouseState.right && !this.previousMouseState.right;
+        return false;
     }
 
-    isReleased() {
-        return !this.currentMouseState.down && this.previousMouseState.down;
+    isReleased(mouseButton: MouseButton) {
+        if (mouseButton === MouseButton.Left)
+            return !this.currentMouseState.left && this.previousMouseState.left
+        if (mouseButton === MouseButton.Right)
+            return !this.currentMouseState.right && this.previousMouseState.right;
+        return false;
     }
 }
 
@@ -192,7 +224,7 @@ class Grid {
         const inputX = input.getX();
         const inputY = input.getY();
 
-        if (input.isClicked() && game.blockTray.canPurchase()) {
+        if (input.isClicked(MouseButton.Left) && game.blockTray.canPurchase()) {
             for (let x = 0; x < this.width; x++) {
                 for (let y = 0; y < this.height; y++) {
                     if (this.grid[x][y] === BlockType.Empty && pointWithinRectangle(inputX, inputY,
@@ -200,6 +232,20 @@ class Grid {
                         this.paddedOffsetY + y * this.size,
                         this.paddedSize, this.paddedSize)) {
                         this.grid[x][y] = game.blockTray.purchase();
+                        this.updatePointsPerTick();
+                    }
+                }
+            }
+        }
+
+        if (input.isClicked(MouseButton.Right)) {
+            for (let x = 0; x < this.width; x++) {
+                for (let y = 0; y < this.height; y++) {
+                    if (this.grid[x][y] !== BlockType.Empty && pointWithinRectangle(inputX, inputY,
+                        this.paddedOffsetX + x * this.size,
+                        this.paddedOffsetY + y * this.size,
+                        this.paddedSize, this.paddedSize)) {
+                        this.grid[x][y] = BlockType.Empty;
                         this.updatePointsPerTick();
                     }
                 }
@@ -388,7 +434,7 @@ class BlockTray {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
                 const block = this.blocks[i];
 
-                if (input.isClicked()) {
+                if (input.isClicked(MouseButton.Left)) {
                     this.selected = this.selected === i ? -1 : i;
                 }
 
@@ -461,7 +507,7 @@ class UpgradeTray {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
                 const upgrade = this.upgrades[i];
 
-                if (input.isClicked() && upgrade.cost <= game.points.points) {
+                if (input.isClicked(MouseButton.Left) && upgrade.cost <= game.points.points) {
                     game.points.points -= upgrade.cost;
                     upgrade.action();
                 }
@@ -559,6 +605,14 @@ enum BlockType {
     Incrementor = 1,
     Adder = 2,
     Doubler = 3
+}
+
+enum MouseButton {
+    Left = 0,
+    Middle = 1,
+    Right = 2,
+    Back = 3,
+    Forward = 4,
 }
 
 window.onload = main;

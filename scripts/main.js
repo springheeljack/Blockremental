@@ -67,31 +67,43 @@ var Game = /** @class */ (function () {
     return Game;
 }());
 var MouseState = /** @class */ (function () {
-    function MouseState(x, y, down) {
+    function MouseState(x, y, left, right) {
         this.x = x;
         this.y = y;
-        this.down = down;
+        this.left = left;
+        this.right = right;
     }
     return MouseState;
 }());
 var Input = /** @class */ (function () {
     function Input(canvas) {
         var _this = this;
-        this.previousMouseState = new MouseState(0, 0, false);
-        this.currentMouseState = new MouseState(0, 0, false);
-        this.runningMouseState = new MouseState(0, 0, false);
-        canvas.addEventListener('mousedown', function () { return _this.runningMouseState.down = true; });
-        canvas.addEventListener('mouseup', function () { return _this.runningMouseState.down = false; });
+        this.previousMouseState = new MouseState(0, 0, false, false);
+        this.currentMouseState = new MouseState(0, 0, false, false);
+        this.runningMouseState = new MouseState(0, 0, false, false);
+        canvas.addEventListener('mousedown', function (event) {
+            if (event.button === MouseButton.Left)
+                _this.runningMouseState.left = true;
+            else if (event.button === MouseButton.Right)
+                _this.runningMouseState.right = true;
+        });
+        canvas.addEventListener('mouseup', function (event) {
+            if (event.button === MouseButton.Left)
+                _this.runningMouseState.left = false;
+            else if (event.button === MouseButton.Right)
+                _this.runningMouseState.right = false;
+        });
         canvas.addEventListener('mousemove', function (event) {
             var target = event.currentTarget;
             var rect = target.getBoundingClientRect();
             _this.runningMouseState.x = event.clientX - rect.left;
             _this.runningMouseState.y = event.clientY - rect.top;
         });
+        canvas.addEventListener('contextmenu', function (event) { return event.preventDefault(); });
     }
     Input.prototype.update = function () {
         this.previousMouseState = this.currentMouseState;
-        this.currentMouseState = new MouseState(this.runningMouseState.x, this.runningMouseState.y, this.runningMouseState.down);
+        this.currentMouseState = new MouseState(this.runningMouseState.x, this.runningMouseState.y, this.runningMouseState.left, this.runningMouseState.right);
     };
     Input.prototype.getX = function () {
         return this.currentMouseState.x;
@@ -99,17 +111,33 @@ var Input = /** @class */ (function () {
     Input.prototype.getY = function () {
         return this.currentMouseState.y;
     };
-    Input.prototype.isUp = function () {
-        return !this.currentMouseState.down;
+    Input.prototype.isUp = function (mouseButton) {
+        if (mouseButton === MouseButton.Left)
+            return !this.currentMouseState.left;
+        if (mouseButton === MouseButton.Right)
+            return !this.currentMouseState.right;
+        return false;
     };
-    Input.prototype.isDown = function () {
-        return this.currentMouseState.down;
+    Input.prototype.isDown = function (mouseButton) {
+        if (mouseButton === MouseButton.Left)
+            return this.currentMouseState.left;
+        if (mouseButton === MouseButton.Right)
+            return this.currentMouseState.right;
+        return false;
     };
-    Input.prototype.isClicked = function () {
-        return this.currentMouseState.down && !this.previousMouseState.down;
+    Input.prototype.isClicked = function (mouseButton) {
+        if (mouseButton === MouseButton.Left)
+            return this.currentMouseState.left && !this.previousMouseState.left;
+        if (mouseButton === MouseButton.Right)
+            return this.currentMouseState.right && !this.previousMouseState.right;
+        return false;
     };
-    Input.prototype.isReleased = function () {
-        return !this.currentMouseState.down && this.previousMouseState.down;
+    Input.prototype.isReleased = function (mouseButton) {
+        if (mouseButton === MouseButton.Left)
+            return !this.currentMouseState.left && this.previousMouseState.left;
+        if (mouseButton === MouseButton.Right)
+            return !this.currentMouseState.right && this.previousMouseState.right;
+        return false;
     };
     return Input;
 }());
@@ -139,11 +167,21 @@ var Grid = /** @class */ (function () {
         var input = game.input;
         var inputX = input.getX();
         var inputY = input.getY();
-        if (input.isClicked() && game.blockTray.canPurchase()) {
+        if (input.isClicked(MouseButton.Left) && game.blockTray.canPurchase()) {
             for (var x = 0; x < this.width; x++) {
                 for (var y = 0; y < this.height; y++) {
                     if (this.grid[x][y] === BlockType.Empty && pointWithinRectangle(inputX, inputY, this.paddedOffsetX + x * this.size, this.paddedOffsetY + y * this.size, this.paddedSize, this.paddedSize)) {
                         this.grid[x][y] = game.blockTray.purchase();
+                        this.updatePointsPerTick();
+                    }
+                }
+            }
+        }
+        if (input.isClicked(MouseButton.Right)) {
+            for (var x = 0; x < this.width; x++) {
+                for (var y = 0; y < this.height; y++) {
+                    if (this.grid[x][y] !== BlockType.Empty && pointWithinRectangle(inputX, inputY, this.paddedOffsetX + x * this.size, this.paddedOffsetY + y * this.size, this.paddedSize, this.paddedSize)) {
+                        this.grid[x][y] = BlockType.Empty;
                         this.updatePointsPerTick();
                     }
                 }
@@ -304,7 +342,7 @@ var BlockTray = /** @class */ (function () {
         for (var i = 0; i < this.blocks.length; i++) {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
                 var block = this.blocks[i];
-                if (input.isClicked()) {
+                if (input.isClicked(MouseButton.Left)) {
                     this.selected = this.selected === i ? -1 : i;
                 }
                 game.tooltip = new Tooltip(block.name, block.description, x, y, block.cost);
@@ -365,7 +403,7 @@ var UpgradeTray = /** @class */ (function () {
         for (var i = 0; i < this.upgrades.length; i++) {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
                 var upgrade = this.upgrades[i];
-                if (input.isClicked() && upgrade.cost <= game.points.points) {
+                if (input.isClicked(MouseButton.Left) && upgrade.cost <= game.points.points) {
                     game.points.points -= upgrade.cost;
                     upgrade.action();
                 }
@@ -448,5 +486,13 @@ var BlockType;
     BlockType[BlockType["Adder"] = 2] = "Adder";
     BlockType[BlockType["Doubler"] = 3] = "Doubler";
 })(BlockType || (BlockType = {}));
+var MouseButton;
+(function (MouseButton) {
+    MouseButton[MouseButton["Left"] = 0] = "Left";
+    MouseButton[MouseButton["Middle"] = 1] = "Middle";
+    MouseButton[MouseButton["Right"] = 2] = "Right";
+    MouseButton[MouseButton["Back"] = 3] = "Back";
+    MouseButton[MouseButton["Forward"] = 4] = "Forward";
+})(MouseButton || (MouseButton = {}));
 window.onload = main;
 //# sourceMappingURL=main.js.map
