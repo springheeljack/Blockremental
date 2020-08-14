@@ -8,6 +8,7 @@ function main() {
 var Game = /** @class */ (function () {
     function Game() {
         this.blocksDict = {};
+        this.upgradesDict = {};
         this.updateInterval = 1000 / 60;
         this.drawInterval = 1000 / 60;
         this.colours = {
@@ -33,13 +34,13 @@ var Game = /** @class */ (function () {
     }
     Game.prototype.init = function () {
         this.setupBlocks();
+        this.setupUpgrades();
         this.input = new Input(this.canvas);
         this.points = new Points();
         this.grid = new Grid();
         this.grid.init();
         this.blockTray = new BlockTray();
         this.upgradeTray = new UpgradeTray();
-        this.upgradeTray.init();
     };
     Game.prototype.update = function () {
         this.tooltip = null;
@@ -70,7 +71,7 @@ var Game = /** @class */ (function () {
     Game.prototype.setupBlocks = function () {
         var _this = this;
         this.blocks = [
-            new BlockInfo(BlockType.Incrementor, 10, 'Incrementor', 'I', 'Generates 1 point per second. TEST'),
+            new BlockInfo(BlockType.Incrementor, 10, 'Incrementor', 'I', 'Generates 1 point per second.', true),
             new BlockInfo(BlockType.Adder, 20, 'Adder', 'A', 'Increases the points collected by adjacent incrementors by 1.'),
             new BlockInfo(BlockType.Doubler, 30, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
             new BlockInfo(BlockType.EdgeCase, 40, 'Edge Case', 'E', 'Increases points per second by 5% for each adjacent grid edge.'),
@@ -78,8 +79,29 @@ var Game = /** @class */ (function () {
         ];
         this.blocks.forEach(function (x) { return _this.blocksDict[x.type] = x; });
     };
+    Game.prototype.setupUpgrades = function () {
+        var _this = this;
+        this.upgrades = [
+            new UpgradeInfo(Upgrade.GridSize1, 20, 'Bigger grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid),
+            new UpgradeInfo(Upgrade.GridSize2, 200, 'Even bigger grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid, Upgrade.GridSize1),
+            new UpgradeInfo(Upgrade.GridSize3, 2000, 'Even even bigger grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid, Upgrade.GridSize2),
+            new UpgradeInfo(Upgrade.GridSize4, 20000, 'Mega grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid, Upgrade.GridSize3),
+            new UpgradeInfo(Upgrade.GridSize5, 200000, 'Ultra grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid, Upgrade.GridSize4),
+            new UpgradeInfo(Upgrade.UnlockAdder, 100, 'Unlock Adders', 'Allows the Adder block to be bought and placed.', 'A', UpgradeEffect.UnlockAdder, Upgrade.GridSize1),
+            new UpgradeInfo(Upgrade.UnlockDoubler, 1000, 'Unlock Doublers', 'Allows the Doubler block to be bought and placed.', 'D', UpgradeEffect.UnlockDoubler, Upgrade.GridSize2),
+            new UpgradeInfo(Upgrade.UnlockEdgeCase, 10000, 'Unlock Edge Cases', 'Allows the Edge Case block to be bought and placed.', 'E', UpgradeEffect.UnlockEdgeCase, Upgrade.GridSize3),
+            new UpgradeInfo(Upgrade.UnlockVoidIncrementor, 100000, 'Unlock Void Incrementors', 'Allows the Void Incrementor block to be bought and placed.', 'V', UpgradeEffect.UnlockVoidIncrementor, Upgrade.GridSize4),
+        ];
+        this.upgrades.forEach(function (x) {
+            _this.upgradesDict[x.id] = x;
+            x.init();
+        });
+    };
     Game.prototype.getBlockInfo = function (blockType) {
         return this.blocks.filter(function (x) { return x.type === blockType; })[0];
+    };
+    Game.prototype.getUpgradeInfo = function (upgrade) {
+        return this.upgrades.filter(function (x) { return x.id === upgrade; })[0];
     };
     return Game;
 }());
@@ -346,7 +368,7 @@ var Grid = /** @class */ (function () {
 }());
 var Points = /** @class */ (function () {
     function Points() {
-        this.points = 1000;
+        this.points = 100000000;
         this.pointsPerTick = 0;
         this.updateTime = 1000;
         this.currentTime = 0;
@@ -367,12 +389,14 @@ var Points = /** @class */ (function () {
     return Points;
 }());
 var BlockInfo = /** @class */ (function () {
-    function BlockInfo(type, cost, name, char, description) {
+    function BlockInfo(type, cost, name, char, description, unlocked) {
+        if (unlocked === void 0) { unlocked = false; }
         this.type = type;
         this.cost = cost;
         this.name = name;
         this.char = char;
         this.description = description;
+        this.unlocked = unlocked;
     }
     return BlockInfo;
 }());
@@ -387,9 +411,10 @@ var BlockTray = /** @class */ (function () {
         var input = game.input;
         var x = input.getX();
         var y = input.getY();
-        for (var i = 0; i < game.blocks.length; i++) {
+        var visibleBlocks = this.getVisibleBlocks();
+        for (var i = 0; i < visibleBlocks.length; i++) {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
-                var block = game.blocks[i];
+                var block = visibleBlocks[i];
                 if (input.isClicked(MouseButton.Left)) {
                     this.selected = this.selected === i ? -1 : i;
                 }
@@ -398,8 +423,9 @@ var BlockTray = /** @class */ (function () {
         }
     };
     BlockTray.prototype.draw = function (context) {
-        for (var i = 0; i < game.blocks.length; i++) {
-            var block = game.blocks[i];
+        var visibleBlocks = this.getVisibleBlocks();
+        for (var i = 0; i < visibleBlocks.length; i++) {
+            var block = visibleBlocks[i];
             var selected = i === this.selected;
             var x = this.offsetX + (50 * i);
             context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
@@ -410,66 +436,99 @@ var BlockTray = /** @class */ (function () {
         }
     };
     BlockTray.prototype.canPurchase = function () {
-        return this.selected !== -1 && game.points.points >= game.blocks[this.selected].cost;
+        return this.selected !== -1 && game.points.points >= this.getVisibleBlocks()[this.selected].cost;
     };
     BlockTray.prototype.purchase = function () {
-        var block = game.blocks[this.selected];
+        var block = this.getVisibleBlocks()[this.selected];
         game.points.points -= block.cost;
         return block.type;
+    };
+    BlockTray.prototype.getVisibleBlocks = function () {
+        return game.blocks.filter(function (x) { return x.unlocked; });
     };
     return BlockTray;
 }());
 var UpgradeInfo = /** @class */ (function () {
-    function UpgradeInfo(cost, name, description, char, action) {
+    function UpgradeInfo(id, cost, name, description, char, effect, preId) {
+        if (preId === void 0) { preId = null; }
+        this.id = id;
         this.cost = cost;
         this.name = name;
         this.description = description;
         this.char = char;
-        this.action = action;
+        this.effect = effect;
+        this.preId = preId;
+        this.purchased = false;
+        this.pre = null;
     }
-    UpgradeInfo.prototype.draw = function (context, x, y) {
-        context.strokeStyle = game.colours.boxNormal;
-        context.strokeRect(x, y, 45, 45);
-        context.font = game.fonts.large;
-        context.fillStyle = game.colours.textNormal;
-        context.fillText(this.char, x + 10, y + 35);
+    UpgradeInfo.prototype.init = function () {
+        if (this.preId != null) {
+            this.pre = game.getUpgradeInfo(this.preId);
+        }
+    };
+    UpgradeInfo.prototype.isVisible = function () {
+        return !this.purchased && (this.preId == null || game.getUpgradeInfo(this.preId).purchased == true);
+    };
+    UpgradeInfo.prototype.action = function () {
+        if (this.effect === UpgradeEffect.BiggerGrid) {
+            game.grid.width += 1;
+            game.grid.height += 1;
+            game.grid.adjustGridSize();
+        }
+        else if (this.effect === UpgradeEffect.UnlockAdder) {
+            game.getBlockInfo(BlockType.Adder).unlocked = true;
+        }
+        else if (this.effect === UpgradeEffect.UnlockDoubler) {
+            game.getBlockInfo(BlockType.Doubler).unlocked = true;
+        }
+        else if (this.effect === UpgradeEffect.UnlockEdgeCase) {
+            game.getBlockInfo(BlockType.EdgeCase).unlocked = true;
+        }
+        else if (this.effect === UpgradeEffect.UnlockVoidIncrementor) {
+            game.getBlockInfo(BlockType.VoidIncrementor).unlocked = true;
+        }
+    };
+    UpgradeInfo.prototype.purchase = function () {
+        game.points.points -= this.cost;
+        this.action();
+        this.purchased = true;
     };
     return UpgradeInfo;
 }());
 var UpgradeTray = /** @class */ (function () {
     function UpgradeTray() {
-        this.upgrades = [];
         this.offsetX = 20;
         this.offsetY = 400;
     }
-    UpgradeTray.prototype.init = function () {
-        this.upgrades = [
-            new UpgradeInfo(15, 'Bigger grid', 'Increases the size of the grid by 1.', '+', function () {
-                game.grid.width += 1;
-                game.grid.height += 1;
-                game.grid.adjustGridSize();
-            })
-        ];
-    };
     UpgradeTray.prototype.update = function () {
         var input = game.input;
         var x = input.getX();
         var y = input.getY();
-        for (var i = 0; i < this.upgrades.length; i++) {
+        var visibleUpgrades = this.getVisibleUpgrades();
+        for (var i = 0; i < visibleUpgrades.length; i++) {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
-                var upgrade = this.upgrades[i];
+                var upgrade = visibleUpgrades[i];
                 if (input.isClicked(MouseButton.Left) && upgrade.cost <= game.points.points) {
-                    game.points.points -= upgrade.cost;
-                    upgrade.action();
+                    upgrade.purchase();
                 }
                 game.tooltip = new Tooltip(upgrade.name, upgrade.description, x, y, upgrade.cost);
             }
         }
     };
     UpgradeTray.prototype.draw = function (context) {
-        for (var i = 0; i < this.upgrades.length; i++) {
-            this.upgrades[i].draw(context, this.offsetX + (50 * i), this.offsetY);
+        var visibleUpgrades = this.getVisibleUpgrades();
+        for (var i = 0; i < visibleUpgrades.length; i++) {
+            var upgrade = visibleUpgrades[i];
+            var x = this.offsetX + (50 * i);
+            context.strokeStyle = game.colours.boxNormal;
+            context.strokeRect(x, this.offsetY, 45, 45);
+            context.font = game.fonts.large;
+            context.fillStyle = game.colours.textNormal;
+            context.fillText(upgrade.char, x + 10, this.offsetY + 35);
         }
+    };
+    UpgradeTray.prototype.getVisibleUpgrades = function () {
+        return game.upgrades.filter(function (x) { return x.isVisible(); });
     };
     return UpgradeTray;
 }());
@@ -543,6 +602,29 @@ var BlockType;
     BlockType[BlockType["EdgeCase"] = 4] = "EdgeCase";
     BlockType[BlockType["VoidIncrementor"] = 5] = "VoidIncrementor";
 })(BlockType || (BlockType = {}));
+var Upgrade;
+(function (Upgrade) {
+    Upgrade[Upgrade["GridSize1"] = 1] = "GridSize1";
+    Upgrade[Upgrade["GridSize2"] = 2] = "GridSize2";
+    Upgrade[Upgrade["GridSize3"] = 3] = "GridSize3";
+    Upgrade[Upgrade["GridSize4"] = 4] = "GridSize4";
+    Upgrade[Upgrade["GridSize5"] = 5] = "GridSize5";
+    Upgrade[Upgrade["GridSize6"] = 6] = "GridSize6";
+    Upgrade[Upgrade["GridSize7"] = 7] = "GridSize7";
+    Upgrade[Upgrade["GridSize8"] = 8] = "GridSize8";
+    Upgrade[Upgrade["UnlockAdder"] = 9] = "UnlockAdder";
+    Upgrade[Upgrade["UnlockDoubler"] = 10] = "UnlockDoubler";
+    Upgrade[Upgrade["UnlockEdgeCase"] = 11] = "UnlockEdgeCase";
+    Upgrade[Upgrade["UnlockVoidIncrementor"] = 12] = "UnlockVoidIncrementor";
+})(Upgrade || (Upgrade = {}));
+var UpgradeEffect;
+(function (UpgradeEffect) {
+    UpgradeEffect[UpgradeEffect["BiggerGrid"] = 1] = "BiggerGrid";
+    UpgradeEffect[UpgradeEffect["UnlockAdder"] = 101] = "UnlockAdder";
+    UpgradeEffect[UpgradeEffect["UnlockDoubler"] = 102] = "UnlockDoubler";
+    UpgradeEffect[UpgradeEffect["UnlockEdgeCase"] = 103] = "UnlockEdgeCase";
+    UpgradeEffect[UpgradeEffect["UnlockVoidIncrementor"] = 104] = "UnlockVoidIncrementor";
+})(UpgradeEffect || (UpgradeEffect = {}));
 var MouseButton;
 (function (MouseButton) {
     MouseButton[MouseButton["Left"] = 0] = "Left";

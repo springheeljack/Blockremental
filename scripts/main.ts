@@ -25,6 +25,8 @@ class Game {
     tooltip: Tooltip;
     blocks: BlockInfo[];
     blocksDict = {} as Record<BlockType, BlockInfo>;
+    upgrades: UpgradeInfo[];
+    upgradesDict = {} as Record<Upgrade, UpgradeInfo>;
 
     updateInterval = 1000 / 60;
     drawInterval = 1000 / 60;
@@ -61,6 +63,8 @@ class Game {
     init() {
         this.setupBlocks();
 
+        this.setupUpgrades();
+
         this.input = new Input(this.canvas);
 
         this.points = new Points();
@@ -71,7 +75,6 @@ class Game {
         this.blockTray = new BlockTray();
 
         this.upgradeTray = new UpgradeTray();
-        this.upgradeTray.init();
     }
 
     update() {
@@ -114,7 +117,7 @@ class Game {
 
     setupBlocks() {
         this.blocks = [
-            new BlockInfo(BlockType.Incrementor, 10, 'Incrementor', 'I', 'Generates 1 point per second. TEST'),
+            new BlockInfo(BlockType.Incrementor, 10, 'Incrementor', 'I', 'Generates 1 point per second.', true),
             new BlockInfo(BlockType.Adder, 20, 'Adder', 'A', 'Increases the points collected by adjacent incrementors by 1.'),
             new BlockInfo(BlockType.Doubler, 30, 'Doubler', 'D', 'Doubles the effectiveness of adjacent Adders.'),
             new BlockInfo(BlockType.EdgeCase, 40, 'Edge Case', 'E', 'Increases points per second by 5% for each adjacent grid edge.'),
@@ -124,8 +127,32 @@ class Game {
         this.blocks.forEach(x => this.blocksDict[x.type] = x);
     }
 
+    setupUpgrades() {
+        this.upgrades = [
+            new UpgradeInfo(Upgrade.GridSize1, 20, 'Bigger grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid),
+            new UpgradeInfo(Upgrade.GridSize2, 200, 'Even bigger grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid, Upgrade.GridSize1),
+            new UpgradeInfo(Upgrade.GridSize3, 2000, 'Even even bigger grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid, Upgrade.GridSize2),
+            new UpgradeInfo(Upgrade.GridSize4, 20000, 'Mega grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid, Upgrade.GridSize3),
+            new UpgradeInfo(Upgrade.GridSize5, 200000, 'Ultra grid', 'Increases the size of the grid by 1.', '+', UpgradeEffect.BiggerGrid, Upgrade.GridSize4),
+
+            new UpgradeInfo(Upgrade.UnlockAdder, 100, 'Unlock Adders', 'Allows the Adder block to be bought and placed.', 'A', UpgradeEffect.UnlockAdder, Upgrade.GridSize1),
+            new UpgradeInfo(Upgrade.UnlockDoubler, 1000, 'Unlock Doublers', 'Allows the Doubler block to be bought and placed.', 'D', UpgradeEffect.UnlockDoubler, Upgrade.GridSize2),
+            new UpgradeInfo(Upgrade.UnlockEdgeCase, 10000, 'Unlock Edge Cases', 'Allows the Edge Case block to be bought and placed.', 'E', UpgradeEffect.UnlockEdgeCase, Upgrade.GridSize3),
+            new UpgradeInfo(Upgrade.UnlockVoidIncrementor, 100000, 'Unlock Void Incrementors', 'Allows the Void Incrementor block to be bought and placed.', 'V', UpgradeEffect.UnlockVoidIncrementor, Upgrade.GridSize4),
+        ];
+
+        this.upgrades.forEach(x => {
+            this.upgradesDict[x.id] = x;
+            x.init();
+        });
+    }
+
     getBlockInfo(blockType: BlockType) {
         return this.blocks.filter(x => x.type === blockType)[0];
+    }
+
+    getUpgradeInfo(upgrade: Upgrade) {
+        return this.upgrades.filter(x => x.id === upgrade)[0];
     }
 }
 
@@ -444,7 +471,7 @@ class Grid {
 }
 
 class Points {
-    points = 1000;
+    points = 100000000;
     pointsPerTick = 0;
     updateTime = 1000;
     currentTime = 0;
@@ -474,6 +501,7 @@ class BlockInfo {
         public name: string,
         public char: string,
         public description: string,
+        public unlocked = false
     ) { }
 }
 
@@ -489,10 +517,11 @@ class BlockTray {
 
         const x = input.getX();
         const y = input.getY();
+        const visibleBlocks = this.getVisibleBlocks();
 
-        for (let i = 0; i < game.blocks.length; i++) {
+        for (let i = 0; i < visibleBlocks.length; i++) {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
-                const block = game.blocks[i];
+                const block = visibleBlocks[i];
 
                 if (input.isClicked(MouseButton.Left)) {
                     this.selected = this.selected === i ? -1 : i;
@@ -504,8 +533,10 @@ class BlockTray {
     }
 
     draw(context: Context) {
-        for (let i = 0; i < game.blocks.length; i++) {
-            const block = game.blocks[i];
+        const visibleBlocks = this.getVisibleBlocks();
+
+        for (let i = 0; i < visibleBlocks.length; i++) {
+            const block = visibleBlocks[i];
 
             const selected = i === this.selected;
             const x = this.offsetX + (50 * i);
@@ -520,66 +551,90 @@ class BlockTray {
     }
 
     canPurchase() {
-        return this.selected !== -1 && game.points.points >= game.blocks[this.selected].cost;
+        return this.selected !== -1 && game.points.points >= this.getVisibleBlocks()[this.selected].cost;
     }
 
     purchase() {
-        const block = game.blocks[this.selected];
+        const block = this.getVisibleBlocks()[this.selected];
 
         game.points.points -= block.cost;
 
         return block.type;
     }
+
+    getVisibleBlocks() {
+        return game.blocks.filter(x => x.unlocked);
+    }
 }
 
 class UpgradeInfo {
+    public purchased = false;
+    private pre: UpgradeInfo = null;
+
     constructor(
+        public id: Upgrade,
         public cost: number,
         public name: string,
         public description: string,
         public char: string,
-        public action: Function
+        public effect: UpgradeEffect,
+        public preId: Upgrade = null
     ) { }
 
-    draw(context: Context, x: number, y: number) {
-        context.strokeStyle = game.colours.boxNormal;
-        context.strokeRect(x, y, 45, 45);
+    init() {
+        if (this.preId != null) {
+            this.pre = game.getUpgradeInfo(this.preId);
+        }
+    }
 
-        context.font = game.fonts.large;
-        context.fillStyle = game.colours.textNormal;
-        context.fillText(this.char, x + 10, y + 35);
+    isVisible() {
+        return !this.purchased && (this.preId == null || game.getUpgradeInfo(this.preId).purchased == true);
+    }
+
+    action() {
+        if (this.effect === UpgradeEffect.BiggerGrid) {
+            game.grid.width += 1;
+            game.grid.height += 1;
+            game.grid.adjustGridSize();
+        }
+        else if (this.effect === UpgradeEffect.UnlockAdder) {
+            game.getBlockInfo(BlockType.Adder).unlocked = true;
+        }
+        else if (this.effect === UpgradeEffect.UnlockDoubler) {
+            game.getBlockInfo(BlockType.Doubler).unlocked = true;
+        }
+        else if (this.effect === UpgradeEffect.UnlockEdgeCase) {
+            game.getBlockInfo(BlockType.EdgeCase).unlocked = true;
+        }
+        else if (this.effect === UpgradeEffect.UnlockVoidIncrementor) {
+            game.getBlockInfo(BlockType.VoidIncrementor).unlocked = true;
+        }
+    }
+
+    purchase() {
+        game.points.points -= this.cost;
+        this.action();
+        this.purchased = true;
     }
 }
 
 class UpgradeTray {
-    upgrades: UpgradeInfo[] = [];
-
     offsetX = 20;
     offsetY = 400;
-
-    init() {
-        this.upgrades = [
-            new UpgradeInfo(15, 'Bigger grid', 'Increases the size of the grid by 1.', '+', () => {
-                game.grid.width += 1;
-                game.grid.height += 1;
-                game.grid.adjustGridSize();
-            })
-        ]
-    }
 
     update() {
         const input = game.input;
 
         const x = input.getX();
         const y = input.getY();
+        const visibleUpgrades = this.getVisibleUpgrades();
 
-        for (let i = 0; i < this.upgrades.length; i++) {
+        for (let i = 0; i < visibleUpgrades.length; i++) {
             if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
-                const upgrade = this.upgrades[i];
+                const upgrade = visibleUpgrades[i];
 
                 if (input.isClicked(MouseButton.Left) && upgrade.cost <= game.points.points) {
-                    game.points.points -= upgrade.cost;
-                    upgrade.action();
+                    upgrade.purchase();
                 }
 
                 game.tooltip = new Tooltip(upgrade.name, upgrade.description, x, y, upgrade.cost);
@@ -588,9 +643,22 @@ class UpgradeTray {
     }
 
     draw(context: Context) {
-        for (let i = 0; i < this.upgrades.length; i++) {
-            this.upgrades[i].draw(context, this.offsetX + (50 * i), this.offsetY);
+        const visibleUpgrades = this.getVisibleUpgrades();
+        for (let i = 0; i < visibleUpgrades.length; i++) {
+            const upgrade = visibleUpgrades[i];
+            const x = this.offsetX + (50 * i);
+
+            context.strokeStyle = game.colours.boxNormal;
+            context.strokeRect(x, this.offsetY, 45, 45);
+
+            context.font = game.fonts.large;
+            context.fillStyle = game.colours.textNormal;
+            context.fillText(upgrade.char, x + 10, this.offsetY + 35);
         }
+    }
+
+    getVisibleUpgrades() {
+        return game.upgrades.filter(x => x.isVisible());
     }
 }
 
@@ -677,6 +745,30 @@ enum BlockType {
     Doubler = 3,
     EdgeCase = 4,
     VoidIncrementor = 5,
+}
+
+enum Upgrade {
+    GridSize1 = 1,
+    GridSize2 = 2,
+    GridSize3 = 3,
+    GridSize4 = 4,
+    GridSize5 = 5,
+    GridSize6 = 6,
+    GridSize7 = 7,
+    GridSize8 = 8,
+    UnlockAdder = 9,
+    UnlockDoubler = 10,
+    UnlockEdgeCase = 11,
+    UnlockVoidIncrementor = 12,
+}
+
+enum UpgradeEffect {
+    BiggerGrid = 1,
+
+    UnlockAdder = 101,
+    UnlockDoubler = 102,
+    UnlockEdgeCase = 103,
+    UnlockVoidIncrementor = 104,
 }
 
 enum MouseButton {
