@@ -374,7 +374,7 @@ var Grid = /** @class */ (function () {
 }());
 var Points = /** @class */ (function () {
     function Points() {
-        this.points = 100000000000;
+        this.points = 10;
         this.pointsPerTick = 0;
         this.updateTime = 1000;
         this.currentTime = 0;

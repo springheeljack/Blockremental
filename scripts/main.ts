@@ -482,7 +482,7 @@ class Grid {
 }
 
 class Points {
-    points = 100000000000;
+    points = 10;
     pointsPerTick = 0;
     updateTime = 1000;
     currentTime = 0;
