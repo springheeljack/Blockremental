@@ -1,5 +1,11 @@
 block that affects a whole line
 block that must touch 2 other types of blocks
 
+block that affects doublers (change name) which increases effectiveness based on number of adjacent incrementors
+	recursor
+
+block that takes points from all adjacent incrementors? is that just doubling? 4 of these around an incrementor would mean incrementor points x5, 4 doublers would be incrementor points x16
+subroutine
+
 achievements:
 	Useless - have an edge case touching 4 edges
