@@ -1,9 +1,70 @@
 type Context = CanvasRenderingContext2D;
 type Canvas = HTMLCanvasElement;
 
+interface CanvasRenderingContext2D {
+    drawString(text: string, x: number, y: number, size: number, font: string, colour: Colour, align: Align): void;
+    measureString(text: string, size: number, font: string): TextMetrics;
+    drawRect(x: number, y: number, w: number, h: number, colour: Colour, fill: boolean): void;
+}
+
 let game: Game;
 
 function main() {
+    CanvasRenderingContext2D.prototype.drawString = function (text: string, x: number, y: number, size: number, font: string, colour: Colour, align: Align) {
+        const context = this as Context;
+
+        context.fillStyle = colour.getHexString();
+        context.font = `${size}px ${font}`;
+
+        const width = context.measureText(text).width;
+        const height = size;
+
+        //TODO: look into CanvasTextAlign and CanvasTextBaseline
+
+        let actualX = x;
+        let actualY = y;
+
+        if (align === Align.Bottom
+            || align === Align.BottomLeft
+            || align === Align.BottomRight)
+            actualY = y + height;
+        else if (align === Align.Left
+            || align === Align.Center
+            || align === Align.Right)
+            actualY = y + height / 2;
+
+        if (align === Align.Top
+            || align === Align.Center
+            || align === Align.Bottom)
+            actualX = x + width / 2;
+        else if (align === Align.TopRight
+            || align === Align.Right
+            || align === Align.BottomRight)
+            actualX = x + width;
+
+        context.fillText(text, actualX, actualY);
+    }
+
+    CanvasRenderingContext2D.prototype.measureString = function (text: string, size: number, font: string) {
+        const context = this as Context;
+
+        context.font = `${size}px ${font}`;
+        return context.measureText(text);
+    }
+
+    CanvasRenderingContext2D.prototype.drawRect = function (x: number, y: number, w: number, h: number, colour: Colour, fill: boolean = false) {
+        const context = this as Context;
+
+        if (fill) {
+            context.fillStyle = colour.getHexString();
+            context.fillRect(x, y, w, h);
+        }
+        else {
+            context.strokeStyle = colour.getHexString();
+            context.strokeRect(x, y, w, h);
+        }
+    }
+
     game = new Game();
 
     game.init();
@@ -23,6 +84,8 @@ class Game {
     blockTray: BlockTray;
     upgradeTray: UpgradeTray;
     tooltip: Tooltip;
+    titleBar: TitleBar;
+
     blocks: BlockInfo[];
     blocksDict = {} as Record<BlockType, BlockInfo>;
     upgrades: UpgradeInfo[];
@@ -35,29 +98,25 @@ class Game {
     height: number;
 
     colours = {
-        background: '#005555',
-        textNormal: '#AAAAAA',
-        textGood: '#00AA00',
-        textBad: '#AA0000',
-        boxNormal: '#AAAAAA',
-        boxGood: '#00AA00',
-        boxBad: '#AA0000',
+        background: new Colour(0, 80, 80),
+        textNormal: new Colour(160, 160, 160),
+        textGood: new Colour(0, 160, 0),
+        textBad: new Colour(160, 0, 0),
+        boxNormal: new Colour(160, 160, 160),
+        boxGood: new Colour(0, 160, 0),
+        boxBad: new Colour(160, 0, 0),
     }
 
     fonts = {
-        small: '16px Arial',
-        medium: '22px Arial',
-        large: '30px Arial',
+        default: 'Arial'
     }
 
     constructor() {
         this.canvas = document.getElementById('gameCanvas') as Canvas;
         this.context = this.canvas.getContext('2d');
 
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-        this.width = window.innerWidth;
-        this.height = window.innerHeight;
+        this.updateWindowSize();
+        window.addEventListener('resize', () => this.updateWindowSize());
     }
 
     init() {
@@ -75,6 +134,8 @@ class Game {
         this.blockTray = new BlockTray();
 
         this.upgradeTray = new UpgradeTray();
+
+        this.titleBar = new TitleBar();
     }
 
     update() {
@@ -93,6 +154,8 @@ class Game {
 
     draw() {
         this.context.clearRect(0, 0, this.width, this.height);
+
+        this.titleBar.draw(this.context);
 
         this.points.draw(this.context);
 
@@ -162,6 +225,13 @@ class Game {
 
     getUpgradeInfo(upgrade: Upgrade) {
         return this.upgrades.filter(x => x.id === upgrade)[0];
+    }
+
+    updateWindowSize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
     }
 }
 
@@ -314,26 +384,18 @@ class Grid {
     }
 
     draw(context: Context) {
-        context.strokeStyle = game.colours.boxNormal;
-        context.fillStyle = game.colours.textNormal;
-        context.font = game.fonts.large;
-
         for (let x = 0; x < this.width; x++) {
             for (let y = 0; y < this.height; y++) {
 
                 const rectX = this.paddedOffsetX + x * this.size;
                 const rectY = this.paddedOffsetY + y * this.size;
 
-                context.strokeRect(
-                    rectX,
-                    rectY,
-                    this.paddedSize,
-                    this.paddedSize);
+                context.drawRect(rectX, rectY, this.paddedSize, this.paddedSize, game.colours.boxNormal, false);
 
                 const cell = this.grid[x][y];
                 if (cell !== BlockType.Empty) {
                     const block = game.blocksDict[cell] as BlockInfo;
-                    context.fillText(block.char, rectX + 10, rectY + 35);
+                    context.drawString(block.char, rectX + 10, rectY + 35, 30, game.fonts.default, game.colours.textNormal, Align.Default);
                 }
             }
         }
@@ -564,10 +626,8 @@ class Points {
     }
 
     draw(context: Context) {
-        context.font = game.fonts.large;
-        context.fillStyle = game.colours.textNormal;
-        context.fillText(this.points.toFixed(), 20, 550);
-        context.fillText(this.pointsPerTick.toFixed(1) + '/s', 20, 580);
+        context.drawString(this.points.toFixed(), 20, 550, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+        context.drawString(this.pointsPerTick.toFixed(1) + '/s', 20, 580, 30, game.fonts.default, game.colours.textNormal, Align.Default);
     }
 }
 
@@ -619,12 +679,8 @@ class BlockTray {
             const selected = i === this.selected;
             const x = this.offsetX + (50 * i);
 
-            context.strokeStyle = selected ? game.colours.boxGood : game.colours.boxNormal;
-            context.strokeRect(x, this.offsetY, 45, 45);
-
-            context.font = game.fonts.large;
-            context.fillStyle = selected ? game.colours.textGood : game.colours.textNormal;
-            context.fillText(block.char, x + 10, this.offsetY + 35);
+            context.drawRect(x, this.offsetY, 45, 45, selected ? game.colours.boxGood : game.colours.boxNormal, false);
+            context.drawString(block.char, x + 10, this.offsetY + 35, 30, game.fonts.default, selected ? game.colours.textGood : game.colours.textNormal, Align.Default);
         }
     }
 
@@ -744,12 +800,8 @@ class UpgradeTray {
             const upgrade = visibleUpgrades[i];
             const x = this.offsetX + (50 * i);
 
-            context.strokeStyle = game.colours.boxNormal;
-            context.strokeRect(x, this.offsetY, 45, 45);
-
-            context.font = game.fonts.large;
-            context.fillStyle = game.colours.textNormal;
-            context.fillText(upgrade.char, x + 10, this.offsetY + 35);
+            context.drawRect(x, this.offsetY, 45, 45, game.colours.boxNormal, false);
+            context.drawString(upgrade.char, x + 10, this.offsetY + 35, 30, game.fonts.default, game.colours.textNormal, Align.Default);
         }
     }
 
@@ -773,25 +825,16 @@ class Tooltip {
 
         const width = this.getWidth(context);
 
-        context.fillStyle = game.colours.background;
-        context.fillRect(this.x, top, width, height);
+        context.drawRect(this.x, top, width, height, game.colours.background, true);
+        context.drawRect(this.x, top, width, height, game.colours.boxNormal, false);
 
-        context.strokeStyle = game.colours.boxNormal;
-        context.strokeRect(this.x, top, width, height);
-
-        context.fillStyle = game.colours.textNormal;
-        context.font = game.fonts.large;
-        context.fillText(this.title, this.x + 5, top + 30);
-
-        context.font = game.fonts.medium;
-        context.fillText(this.text, this.x + 5, top + 55);
+        context.drawString(this.title, this.x + 5, top + 30, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+        context.drawString(this.text, this.x + 5, top + 55, 22, game.fonts.default, game.colours.textNormal, Align.Default);
 
         if (this.cost != null) {
-            context.font = game.fonts.medium;
-            context.fillText(this.getCostPrefix(), this.x + 5, top + 80);
-
-            context.fillStyle = this.cost <= game.points.points ? game.colours.textGood : game.colours.textBad;
-            context.fillText(this.cost.toString(), this.x + 5 + this.getCostPrefixWidth(context), top + 80);
+            context.drawString(this.getCostPrefix(), this.x + 5, top + 80, 22, game.fonts.default, game.colours.textNormal, Align.Default);
+            context.drawString(this.cost.toString(), this.x + 5 + this.getCostPrefixWidth(context), top + 80, 22,
+                game.fonts.default, this.cost <= game.points.points ? game.colours.textGood : game.colours.textBad, Align.Default);
         }
     }
 
@@ -812,18 +855,73 @@ class Tooltip {
     }
 
     getWidth(context: Context) {
-        context.font = game.fonts.large;
-        const titleWidth = context.measureText(this.title).width;
-        context.font = game.fonts.medium;
-        const textWidth = context.measureText(this.text).width;
+        const titleWidth = context.measureString(this.title, 30, game.fonts.default).width;
+        const textWidth = context.measureString(this.text, 22, game.fonts.default).width;
 
         if (this.cost == null) {
             return Math.max(titleWidth, textWidth) + 10;
         }
 
-        context.font = game.fonts.medium;
-        const costWidth = context.measureText(this.getCostPrefix() + this.cost.toString()).width;
+        const costWidth = context.measureString(this.getCostPrefix() + this.cost.toString(), 22, game.fonts.default).width;
         return Math.max(titleWidth, textWidth, costWidth) + 10;
+    }
+}
+
+class TitleBar {
+    draw(context: Context) {
+
+    }
+}
+
+class Colour {
+    private r: number;
+    private g: number;
+    private b: number;
+    private hexString: string;
+
+    getR() { return this.r; }
+    getG() { return this.g; }
+    getB() { return this.b; }
+    getHexString() { return this.hexString; }
+
+    constructor(
+        r: number,
+        g: number,
+        b: number
+    ) {
+        this.r = this.boundValue(r);
+        this.g = this.boundValue(g);
+        this.b = this.boundValue(b);
+
+        this.setHexString();
+    }
+
+    private setHexString() {
+        const rHex = this.r.toString(16);
+        const gHex = this.g.toString(16);
+        const bHex = this.b.toString(16);
+
+        this.hexString = '#';
+
+        if (rHex.length === 1)
+            this.hexString += '0';
+        this.hexString += rHex;
+
+        if (gHex.length === 1)
+            this.hexString += '0';
+        this.hexString += gHex;
+
+        if (bHex.length === 1)
+            this.hexString += '0';
+        this.hexString += bHex;
+    }
+
+    private boundValue(value: number) {
+        if (value < 0)
+            return 0;
+        if (value > 255)
+            return 255;
+        return value;
     }
 }
 
@@ -905,6 +1003,19 @@ enum MouseButton {
     Right = 2,
     Back = 3,
     Forward = 4,
+}
+
+enum Align {
+    Default = 0,
+    TopLeft = 1,
+    Top = 2,
+    TopRight = 3,
+    Left = 4,
+    Center = 5,
+    Right = 6,
+    BottomLeft = 7,
+    Bottom = 8,
+    BottomRight = 9,
 }
 
 window.onload = main;
