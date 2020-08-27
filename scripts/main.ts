@@ -8,6 +8,7 @@ interface CanvasRenderingContext2D {
 }
 
 let game: Game;
+let images = {} as Record<ImageNames, HTMLImageElement>;
 
 function main() {
     CanvasRenderingContext2D.prototype.drawString = function (text: string, x: number, y: number, size: number, font: string, colour: Colour, align: Align) {
@@ -90,6 +91,8 @@ class Game {
     blocksDict = {} as Record<BlockType, BlockInfo>;
     upgrades: UpgradeInfo[];
     upgradesDict = {} as Record<Upgrade, UpgradeInfo>;
+
+    images = {} as Record<ImageNames, HTMLImageElement>;
 
     updateInterval = 1000 / 60;
     drawInterval = 1000 / 60;
@@ -328,8 +331,8 @@ class Input {
 class Grid {
     width = 1;
     height = 1;
-    offsetX = 10;
-    offsetY = 10;
+    offsetX = 15;
+    offsetY = 50;
     padding = 5;
     size = 50;
     paddedSize = this.size - this.padding;
@@ -616,6 +619,9 @@ class Points {
     updateTime = 1000;
     currentTime = 0;
 
+    offsetX = 20;
+    offsetY = 260;
+
     update() {
         this.currentTime += game.updateInterval;
         if (this.currentTime >= this.updateTime) {
@@ -626,8 +632,9 @@ class Points {
     }
 
     draw(context: Context) {
-        context.drawString(this.points.toFixed(), 20, 550, 30, game.fonts.default, game.colours.textNormal, Align.Default);
-        context.drawString(this.pointsPerTick.toFixed(1) + '/s', 20, 580, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+        context.drawString('Points', this.offsetX, game.height - this.offsetY - 60, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+        context.drawString(this.points.toFixed(), this.offsetX, game.height - this.offsetY - 30, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+        context.drawString(this.pointsPerTick.toFixed(1) + '/s', this.offsetX, game.height - this.offsetY, 30, game.fonts.default, game.colours.textNormal, Align.Default);
     }
 }
 
@@ -648,7 +655,7 @@ class BlockTray {
     selected = -1;
 
     offsetX = 20;
-    offsetY = 450;
+    offsetY = 140;
 
     update() {
         const input = game.input;
@@ -658,7 +665,7 @@ class BlockTray {
         const visibleBlocks = this.getVisibleBlocks();
 
         for (let i = 0; i < visibleBlocks.length; i++) {
-            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), game.height - this.offsetY - 50, 45, 45)) {
                 const block = visibleBlocks[i];
 
                 if (input.isClicked(MouseButton.Left)) {
@@ -679,9 +686,11 @@ class BlockTray {
             const selected = i === this.selected;
             const x = this.offsetX + (50 * i);
 
-            context.drawRect(x, this.offsetY, 45, 45, selected ? game.colours.boxGood : game.colours.boxNormal, false);
-            context.drawString(block.char, x + 10, this.offsetY + 35, 30, game.fonts.default, selected ? game.colours.textGood : game.colours.textNormal, Align.Default);
+            context.drawRect(x, game.height - this.offsetY - 50, 45, 45, selected ? game.colours.boxGood : game.colours.boxNormal, false);
+            context.drawString(block.char, x + 10, game.height - this.offsetY - 15, 30, game.fonts.default, selected ? game.colours.textGood : game.colours.textNormal, Align.Default);
         }
+
+        context.drawString('Blocks', this.offsetX, game.height - this.offsetY - 65, 30, game.fonts.default, game.colours.textNormal, Align.Default);
     }
 
     canPurchase() {
@@ -772,7 +781,7 @@ class UpgradeInfo {
 
 class UpgradeTray {
     offsetX = 20;
-    offsetY = 400;
+    offsetY = 20;
 
     update() {
         const input = game.input;
@@ -782,7 +791,7 @@ class UpgradeTray {
         const visibleUpgrades = this.getVisibleUpgrades();
 
         for (let i = 0; i < visibleUpgrades.length; i++) {
-            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), game.height - this.offsetY - 45, 45, 45)) {
                 const upgrade = visibleUpgrades[i];
 
                 if (input.isClicked(MouseButton.Left) && upgrade.cost <= game.points.points) {
@@ -800,9 +809,11 @@ class UpgradeTray {
             const upgrade = visibleUpgrades[i];
             const x = this.offsetX + (50 * i);
 
-            context.drawRect(x, this.offsetY, 45, 45, game.colours.boxNormal, false);
-            context.drawString(upgrade.char, x + 10, this.offsetY + 35, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+            context.drawRect(x, game.height - this.offsetY - 45, 45, 45, game.colours.boxNormal, false);
+            context.drawString(upgrade.char, x + 10, game.height - this.offsetY - 10, 30, game.fonts.default, game.colours.textNormal, Align.Default);
         }
+
+        context.drawString('Upgrades', this.offsetX, game.height - this.offsetY - 60, 30, game.fonts.default, game.colours.textNormal, Align.Default);
     }
 
     getVisibleUpgrades() {
@@ -869,7 +880,7 @@ class Tooltip {
 
 class TitleBar {
     draw(context: Context) {
-
+        context.drawString('Blockremental', 20, 20, 30, game.fonts.default, game.colours.textNormal, Align.Left);
     }
 }
 
@@ -1017,5 +1028,22 @@ enum Align {
     Bottom = 8,
     BottomRight = 9,
 }
+
+enum ImageNames {
+    Test = 'test',
+}
+
+function setupImages() {
+    const imageDiv = document.getElementById('images');
+
+    for (let imageName in ImageNames) {
+        const image = new Image();
+        image.src = 'images/' + ImageNames[imageName] + '.png';
+        imageDiv.append(image);
+        images[ImageNames[imageName]] = image;
+    }
+}
+
+setupImages();
 
 window.onload = main;

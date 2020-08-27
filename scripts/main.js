@@ -1,4 +1,5 @@
 var game;
+var images = {};
 function main() {
     CanvasRenderingContext2D.prototype.drawString = function (text, x, y, size, font, colour, align) {
         var context = this;
@@ -54,6 +55,7 @@ var Game = /** @class */ (function () {
         var _this = this;
         this.blocksDict = {};
         this.upgradesDict = {};
+        this.images = {};
         this.updateInterval = 1000 / 60;
         this.drawInterval = 1000 / 60;
         this.colours = {
@@ -241,8 +243,8 @@ var Grid = /** @class */ (function () {
     function Grid() {
         this.width = 1;
         this.height = 1;
-        this.offsetX = 10;
-        this.offsetY = 10;
+        this.offsetX = 15;
+        this.offsetY = 50;
         this.padding = 5;
         this.size = 50;
         this.paddedSize = this.size - this.padding;
@@ -480,6 +482,8 @@ var Points = /** @class */ (function () {
         this.pointsPerTick = 0;
         this.updateTime = 1000;
         this.currentTime = 0;
+        this.offsetX = 20;
+        this.offsetY = 260;
     }
     Points.prototype.update = function () {
         this.currentTime += game.updateInterval;
@@ -489,8 +493,9 @@ var Points = /** @class */ (function () {
         }
     };
     Points.prototype.draw = function (context) {
-        context.drawString(this.points.toFixed(), 20, 550, 30, game.fonts.default, game.colours.textNormal, Align.Default);
-        context.drawString(this.pointsPerTick.toFixed(1) + '/s', 20, 580, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+        context.drawString('Points', this.offsetX, game.height - this.offsetY - 60, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+        context.drawString(this.points.toFixed(), this.offsetX, game.height - this.offsetY - 30, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+        context.drawString(this.pointsPerTick.toFixed(1) + '/s', this.offsetX, game.height - this.offsetY, 30, game.fonts.default, game.colours.textNormal, Align.Default);
     };
     return Points;
 }());
@@ -512,7 +517,7 @@ var BlockTray = /** @class */ (function () {
         this.blocks = [];
         this.selected = -1;
         this.offsetX = 20;
-        this.offsetY = 450;
+        this.offsetY = 140;
     }
     BlockTray.prototype.update = function () {
         var input = game.input;
@@ -520,7 +525,7 @@ var BlockTray = /** @class */ (function () {
         var y = input.getY();
         var visibleBlocks = this.getVisibleBlocks();
         for (var i = 0; i < visibleBlocks.length; i++) {
-            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), game.height - this.offsetY - 50, 45, 45)) {
                 var block = visibleBlocks[i];
                 if (input.isClicked(MouseButton.Left)) {
                     this.selected = this.selected === i ? -1 : i;
@@ -535,9 +540,10 @@ var BlockTray = /** @class */ (function () {
             var block = visibleBlocks[i];
             var selected = i === this.selected;
             var x = this.offsetX + (50 * i);
-            context.drawRect(x, this.offsetY, 45, 45, selected ? game.colours.boxGood : game.colours.boxNormal, false);
-            context.drawString(block.char, x + 10, this.offsetY + 35, 30, game.fonts.default, selected ? game.colours.textGood : game.colours.textNormal, Align.Default);
+            context.drawRect(x, game.height - this.offsetY - 50, 45, 45, selected ? game.colours.boxGood : game.colours.boxNormal, false);
+            context.drawString(block.char, x + 10, game.height - this.offsetY - 15, 30, game.fonts.default, selected ? game.colours.textGood : game.colours.textNormal, Align.Default);
         }
+        context.drawString('Blocks', this.offsetX, game.height - this.offsetY - 65, 30, game.fonts.default, game.colours.textNormal, Align.Default);
     };
     BlockTray.prototype.canPurchase = function () {
         return this.selected !== -1 && game.points.points >= this.getVisibleBlocks()[this.selected].cost;
@@ -620,7 +626,7 @@ var UpgradeInfo = /** @class */ (function () {
 var UpgradeTray = /** @class */ (function () {
     function UpgradeTray() {
         this.offsetX = 20;
-        this.offsetY = 400;
+        this.offsetY = 20;
     }
     UpgradeTray.prototype.update = function () {
         var input = game.input;
@@ -628,7 +634,7 @@ var UpgradeTray = /** @class */ (function () {
         var y = input.getY();
         var visibleUpgrades = this.getVisibleUpgrades();
         for (var i = 0; i < visibleUpgrades.length; i++) {
-            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), this.offsetY, 45, 45)) {
+            if (pointWithinRectangle(x, y, this.offsetX + (50 * i), game.height - this.offsetY - 45, 45, 45)) {
                 var upgrade = visibleUpgrades[i];
                 if (input.isClicked(MouseButton.Left) && upgrade.cost <= game.points.points) {
                     upgrade.purchase();
@@ -642,9 +648,10 @@ var UpgradeTray = /** @class */ (function () {
         for (var i = 0; i < visibleUpgrades.length; i++) {
             var upgrade = visibleUpgrades[i];
             var x = this.offsetX + (50 * i);
-            context.drawRect(x, this.offsetY, 45, 45, game.colours.boxNormal, false);
-            context.drawString(upgrade.char, x + 10, this.offsetY + 35, 30, game.fonts.default, game.colours.textNormal, Align.Default);
+            context.drawRect(x, game.height - this.offsetY - 45, 45, 45, game.colours.boxNormal, false);
+            context.drawString(upgrade.char, x + 10, game.height - this.offsetY - 10, 30, game.fonts.default, game.colours.textNormal, Align.Default);
         }
+        context.drawString('Upgrades', this.offsetX, game.height - this.offsetY - 60, 30, game.fonts.default, game.colours.textNormal, Align.Default);
     };
     UpgradeTray.prototype.getVisibleUpgrades = function () {
         return game.upgrades.filter(function (x) { return x.isVisible(); });
@@ -700,6 +707,7 @@ var TitleBar = /** @class */ (function () {
     function TitleBar() {
     }
     TitleBar.prototype.draw = function (context) {
+        context.drawString('Blockremental', 20, 20, 30, game.fonts.default, game.colours.textNormal, Align.Left);
     };
     return TitleBar;
 }());
@@ -821,5 +829,19 @@ var Align;
     Align[Align["Bottom"] = 8] = "Bottom";
     Align[Align["BottomRight"] = 9] = "BottomRight";
 })(Align || (Align = {}));
+var ImageNames;
+(function (ImageNames) {
+    ImageNames["Test"] = "test";
+})(ImageNames || (ImageNames = {}));
+function setupImages() {
+    var imageDiv = document.getElementById('images');
+    for (var imageName in ImageNames) {
+        var image = new Image();
+        image.src = 'images/' + ImageNames[imageName] + '.png';
+        imageDiv.append(image);
+        images[ImageNames[imageName]] = image;
+    }
+}
+setupImages();
 window.onload = main;
 //# sourceMappingURL=main.js.map
