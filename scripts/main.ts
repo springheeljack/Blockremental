@@ -501,10 +501,15 @@ class Grid {
             }
         }
 
+        let pointGridWithInheritors = createMultidimensionalArray(this.width, this.height, 0);
+
         for (let x = 0; x < this.width; x++) {
             for (let y = 0; y < this.height; y++) {
                 if (this.grid[x][y] === BlockType.Inheritor) {
-                    pointGrid[x][y] = this.getAdjacentPoints(x, y, pointGrid);
+                    pointGridWithInheritors[x][y] = this.getAdjacentPoints(x, y, pointGrid);
+                }
+                else {
+                    pointGridWithInheritors[x][y] = pointGrid[x][y];
                 }
             }
         }
@@ -512,7 +517,7 @@ class Grid {
         let total = 0;
         for (let x = 0; x < this.width; x++) {
             for (let y = 0; y < this.height; y++) {
-                total += pointGrid[x][y];
+                total += pointGridWithInheritors[x][y];
             }
         }
 
